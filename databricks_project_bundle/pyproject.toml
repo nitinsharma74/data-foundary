@@ -1,0 +1,31 @@
+[project]
+name = "databricks_project_bundle"
+version = "0.0.1"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "pandas",
+    "requests",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "databricks-dlt",
+    "databricks-connect>=15.4,<15.5",
+]
+
+[project.scripts]
+main = "databricks_project_bundle.main:main"
+
+[build-system]
+requires = ["hatchling>=1.21"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "pyproject.toml", "README.md"]
+
+[tool.black]
+line-length = 125

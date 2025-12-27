@@ -1,0 +1,22 @@
+resources:
+  jobs:
+    deezer_top_tracks_daily:
+      name: deezer-top-tracks-daily
+      
+      schedule:
+        quartz_cron_expression: "0 0 9 * * ?"
+        timezone_id: "America/Mexico_City"
+      
+      tasks:
+        - task_key: run_deezer_top_tracks
+          # Link the task to the environment defined below
+          environment_key: "deezer_env"
+          spark_python_task:
+            # Note: Ensure this path matches where your file is uploaded
+            python_file: ${workspace.file_path}/src/deezer_top_tracks_ingestor.py
+
+      environments:
+        - environment_key: "deezer_env"
+          spec:
+            environment_version: "3"
+            dependencies: []

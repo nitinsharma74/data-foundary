@@ -1,0 +1,53 @@
+name: Deploy Databricks Asset Bundle
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate:
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Databricks CLI
+      uses: databricks/setup-cli@main
+
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v3
+
+    - name: Validate bundle
+      env:
+        DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+        DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+      working-directory: databricks_project_bundle
+      run: databricks bundle validate
+
+  deploy:
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor != 'nektos/act' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Databricks CLI
+        uses: databricks/setup-cli@main
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Deploy Asset Bundle
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        working-directory: databricks_project_bundle
+        run: |
+          databricks bundle validate
+          databricks bundle deploy --target ${{ secrets.BUNDLE_TARGET }} --auto-approve
