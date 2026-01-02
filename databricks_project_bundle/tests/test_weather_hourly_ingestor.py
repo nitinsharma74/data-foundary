@@ -47,11 +47,13 @@ def test_fetch_hourly_weather_parses_rows(monkeypatch):
         lambda: MagicMock(),
     )
 
-    app = weather_hourly_ingestor.WeatherHourlyIngestor()
+    app = weather_hourly_ingestor.WeatherHourlyIngestor(
+        station_ids=["KJFK", "KSFO", "KDFW"]
+    )
     df = app.fetch_hourly_weather()
 
     assert isinstance(df, pd.DataFrame)
-    assert df.loc[0, "station_id"] == "KJFK"
+    assert df["station_id"].tolist() == ["KJFK", "KJFK", "KJFK"]
     assert df.loc[0, "temperature_value"] == -1
 
 
