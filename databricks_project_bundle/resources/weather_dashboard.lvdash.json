@@ -22,7 +22,7 @@
         "  min_temperature_last_24_hours_value,\n",
         "  min_temperature_last_24_hours_unit\n",
         "from workspace.default.hourly_weather_report\n",
-        "where observation_timestamp >= current_timestamp() - INTERVAL 72 HOURS"
+        "where observation_timestamp >= current_timestamp() - INTERVAL 30 days"
       ]
     }
   ],
@@ -36,7 +36,7 @@
             "name": "b402b696",
             "multilineTextboxSpec": {
               "lines": [
-                "## <span style=\"text-align:center;display:block;\">HOURLY WEATHER REPORT (KJFK)</span>"
+                "## <span style=\"text-align:center;display:block\">HOURLY WEATHER REPORT</span>"
               ]
             }
           },
@@ -57,8 +57,12 @@
                   "datasetName": "b6c3a5a1",
                   "fields": [
                     {
-                      "name": "observation_timestamp",
-                      "expression": "`observation_timestamp`"
+                      "name": "station_name",
+                      "expression": "`station_name`"
+                    },
+                    {
+                      "name": "hourly(observation_timestamp)",
+                      "expression": "DATE_TRUNC(\"HOUR\", `observation_timestamp`)"
                     },
                     {
                       "name": "temperature_value",
@@ -74,19 +78,33 @@
               "widgetType": "line",
               "encodings": {
                 "x": {
-                  "fieldName": "observation_timestamp",
+                  "fieldName": "hourly(observation_timestamp)",
+                  "displayName": "Date/Hour",
                   "scale": {
-                    "type": "continuous"
-                  },
-                  "title": "Observation Timestamp"
+                    "type": "temporal"
+                  }
                 },
                 "y": {
                   "fieldName": "temperature_value",
+                  "displayName": "Temperature",
                   "scale": {
-                    "type": "continuous"
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "station_name",
+                  "legend": {
+                    "position": "bottom"
                   },
-                  "title": "Temperature"
+                  "displayName": "Station",
+                  "scale": {
+                    "type": "categorical"
+                  }
                 }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Temperature Per Hour"
               }
             }
           },
@@ -102,17 +120,21 @@
             "name": "8b81a9e1",
             "queries": [
               {
-                "name": "wind_query",
+                "name": "main_query",
                 "query": {
                   "datasetName": "b6c3a5a1",
                   "fields": [
                     {
-                      "name": "observation_timestamp",
-                      "expression": "`observation_timestamp`"
+                      "name": "station_name",
+                      "expression": "`station_name`"
                     },
                     {
-                      "name": "wind_speed_value",
-                      "expression": "`wind_speed_value`"
+                      "name": "hourly(observation_timestamp)",
+                      "expression": "DATE_TRUNC(\"HOUR\", `observation_timestamp`)"
+                    },
+                    {
+                      "name": "text_description",
+                      "expression": "`text_description`"
                     }
                   ],
                   "disaggregated": true
@@ -121,22 +143,36 @@
             ],
             "spec": {
               "version": 3,
-              "widgetType": "line",
+              "widgetType": "bar",
               "encodings": {
                 "x": {
-                  "fieldName": "observation_timestamp",
+                  "fieldName": "hourly(observation_timestamp)",
+                  "displayName": "Date/Hour",
                   "scale": {
-                    "type": "continuous"
-                  },
-                  "title": "Observation Timestamp"
+                    "type": "temporal"
+                  }
                 },
                 "y": {
-                  "fieldName": "wind_speed_value",
+                  "fieldName": "text_description",
+                  "displayName": "Weather Description",
                   "scale": {
-                    "type": "continuous"
+                    "type": "categorical"
+                  }
+                },
+                "color": {
+                  "fieldName": "station_name",
+                  "legend": {
+                    "position": "bottom"
                   },
-                  "title": "Wind Speed"
+                  "displayName": "Station",
+                  "scale": {
+                    "type": "categorical"
+                  }
                 }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Weather Description Per Hour"
               }
             }
           },
