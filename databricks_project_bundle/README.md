@@ -1,60 +1,64 @@
-# databricks_project_bundle
+# Weather ETL Portfolio Project
 
-This bundle is a clean scaffold with no jobs, pipelines, or notebooks yet.
+An end-to-end data engineering project that ingests hourly NOAA weather observations, stores them in Delta Lake on Databricks, and refreshes a dashboard on a schedule. The pipeline is designed to be small, readable, and easy to extend with new weather stations.
 
-* `src/`: Python source code for this project (currently empty).
-* `resources/`: Resource configurations (currently empty).
-* `tests/`: Unit tests for the shared Python code (currently empty).
-* `fixtures/`: Fixtures for data sets (currently empty).
+## Highlights
 
+- Multi-station ingestion (KJFK, KSFO, KDFW) with a simple list-based config
+- Delta Lake writes with idempotent updates per station/timestamp
+- Automated Databricks job + dashboard refresh
+- Unit tests for core ingestion logic
 
-## Getting started
+## Architecture
 
-Choose how you want to work on this project:
+1. Fetch latest observations from NOAA for each configured station.
+2. Normalize the response into a single-row schema.
+3. Write into a Delta table in Databricks.
+4. Refresh the dashboard after each run.
 
-(a) Directly in your Databricks workspace, see
-    https://docs.databricks.com/dev-tools/bundles/workspace.
+## Tech stack
 
-(b) Locally with an IDE like Cursor or VS Code, see
-    https://docs.databricks.com/dev-tools/vscode-ext.html.
+- Python + pandas
+- Databricks + Delta Lake
+- Databricks Asset Bundles
+- pytest
 
-(c) With command line tools, see https://docs.databricks.com/dev-tools/cli/databricks-cli.html
+## Project layout
 
-If you're developing with an IDE, dependencies for this project should be installed using uv:
+- `databricks_project_bundle/src/weather_hourly_ingestor.py` ETL logic
+- `databricks_project_bundle/src/constants/weather_constants.py` configuration
+- `databricks_project_bundle/resources/weather_job.yml` job scheduling
+- `databricks_project_bundle/resources/weather_dashboard.yml` dashboard resource
+- `databricks_project_bundle/resources/weather_dashboard.lvdash.json` dashboard definition
+- `databricks_project_bundle/tests/test_weather_hourly_ingestor.py` tests
 
-*  Make sure you have the UV package manager installed.
-   It's an alternative to tools like pip: https://docs.astral.sh/uv/getting-started/installation/.
-*  Run `uv sync --dev` to install the project's dependencies.
+## Run locally
 
+```bash
+uv sync --dev
+uv run pytest
+```
 
-# Using this project using the CLI
+## Deploy to Databricks
 
-The Databricks workspace and IDE extensions provide a graphical interface for working
-with this project. It's also possible to interact with it directly using the CLI:
+```bash
+databricks configure
+databricks bundle deploy --target dev
+databricks bundle deploy --target prod
+```
 
-1. Authenticate to your Databricks workspace, if you have not done so already:
-    ```
-    $ databricks configure
-    ```
+## Configuration
 
-2. To deploy a development copy of this project, type:
-    ```
-    $ databricks bundle deploy --target dev
-    ```
-    (Note that "dev" is the default target, so the `--target` parameter
-    is optional here.)
+- Add stations in `databricks_project_bundle/src/constants/weather_constants.py` via `WEATHER_STATION_IDS`.
+- Update the target table with `WEATHER_TABLE_NAME`.
+- Adjust schedule in `databricks_project_bundle/resources/weather_job.yml`.
 
-    This deploys everything that's defined for this project.
-    The bundle currently has no resources defined.
+## Results
 
-3. Similarly, to deploy a production copy, type:
-   ```
-   $ databricks bundle deploy --target prod
-   ```
-   This uses the same configuration in production mode (see
-   https://docs.databricks.com/dev-tools/bundles/deployment-modes.html).
+The pipeline produces a Delta table with station metadata, observation timestamps, and weather metrics, which powers the dashboard for quick hourly insights.
 
-4. Finally, to run tests locally, use `pytest`:
-   ```
-   $ uv run pytest
-   ```
+## Next ideas
+
+- Add more stations or regions
+- Backfill historical observations
+- Add data quality checks

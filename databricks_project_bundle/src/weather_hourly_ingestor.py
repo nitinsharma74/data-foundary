@@ -13,25 +13,38 @@ from pyspark.sql.types import (
 
 try:
     from src.constants.weather_constants import (
-        HOURLY_WEATHER_URL,
+        HOURLY_WEATHER_BASE_URL,
+        WEATHER_STATION_IDS,
         WEATHER_TABLE_NAME,
         REQUEST_TIMEOUT_SECONDS,
     )
 except ModuleNotFoundError:
     from constants.weather_constants import (
-        HOURLY_WEATHER_URL,
+        HOURLY_WEATHER_BASE_URL,
+        WEATHER_STATION_IDS,
         WEATHER_TABLE_NAME,
         REQUEST_TIMEOUT_SECONDS,
     )
 
 
 class WeatherHourlyIngestor:
+    METRIC_FIELDS = {
+        "temperature": "temperature",
+        "windSpeed": "wind_speed",
+        "windDirection": "wind_direction",
+        "visibility": "visibility",
+        "maxTemperatureLast24Hours": "max_temperature_last_24_hours",
+        "minTemperatureLast24Hours": "min_temperature_last_24_hours",
+    }
+
     def __init__(
         self,
-        url: str = HOURLY_WEATHER_URL,
+        station_ids: list[str] = WEATHER_STATION_IDS,
+        base_url: str = HOURLY_WEATHER_BASE_URL,
         table_name: str = WEATHER_TABLE_NAME,
     ) -> None:
-        self.url = url
+        self.station_ids = station_ids
+        self.base_url = base_url
         self.table_name = table_name
         self.spark = SparkSession.builder.getOrCreate()
         self.schema = StructType(
@@ -59,9 +72,9 @@ class WeatherHourlyIngestor:
         )
 
     @staticmethod
-    def _parse_timestamp(value: str | None) -> datetime:
+    def _parse_timestamp(value: str | None) -> datetime | None:
         if not value:
-            return datetime.now(timezone.utc)
+            return None
         return datetime.fromisoformat(value)
 
     @staticmethod
@@ -71,68 +84,49 @@ class WeatherHourlyIngestor:
         return metric.get("value"), metric.get("unitCode")
 
     def fetch_hourly_weather(self) -> pd.DataFrame:
-        resp = requests.get(self.url, timeout=REQUEST_TIMEOUT_SECONDS)
-        resp.raise_for_status()
-        data = resp.json()
+        rows = []
+        for station_id in self.station_ids:
+            url = self.base_url.format(station_id=station_id)
+            resp = requests.get(url, timeout=REQUEST_TIMEOUT_SECONDS)
+            resp.raise_for_status()
+            properties = resp.json().get("properties", {})
+            now_utc = datetime.now(timezone.utc)
+            timestamp = self._parse_timestamp(properties.get("timestamp")) or now_utc
+            metrics = {}
+            for source_key, prefix in self.METRIC_FIELDS.items():
+                value, unit = self._extract_value(properties.get(source_key))
+                metrics[f"{prefix}_value"] = value
+                metrics[f"{prefix}_unit"] = unit
 
-        properties = data.get("properties", {})
-        timestamp = self._parse_timestamp(properties.get("timestamp"))
-        temperature_value, temperature_unit = self._extract_value(
-            properties.get("temperature")
-        )
-        wind_speed_value, wind_speed_unit = self._extract_value(
-            properties.get("windSpeed")
-        )
-        wind_direction_value, wind_direction_unit = self._extract_value(
-            properties.get("windDirection")
-        )
-        visibility_value, visibility_unit = self._extract_value(
-            properties.get("visibility")
-        )
-        max_temp_value, max_temp_unit = self._extract_value(
-            properties.get("maxTemperatureLast24Hours")
-        )
-        min_temp_value, min_temp_unit = self._extract_value(
-            properties.get("minTemperatureLast24Hours")
-        )
+            rows.append(
+                {
+                    "station_id": properties.get("stationId") or station_id,
+                    "station_name": properties.get("stationName"),
+                    "observation_timestamp": timestamp,
+                    "observation_date": timestamp.date().isoformat(),
+                    "observation_time": timestamp.time().strftime("%H:%M:%S"),
+                    "text_description": properties.get("textDescription"),
+                    "ingested_at": now_utc,
+                    **metrics,
+                }
+            )
 
-        row = {
-            "station_id": properties.get("stationId"),
-            "station_name": properties.get("stationName"),
-            "observation_timestamp": timestamp,
-            "observation_date": timestamp.date().isoformat(),
-            "observation_time": timestamp.time().strftime("%H:%M:%S"),
-            "text_description": properties.get("textDescription"),
-            "temperature_value": temperature_value,
-            "temperature_unit": temperature_unit,
-            "wind_speed_value": wind_speed_value,
-            "wind_speed_unit": wind_speed_unit,
-            "wind_direction_value": wind_direction_value,
-            "wind_direction_unit": wind_direction_unit,
-            "visibility_value": visibility_value,
-            "visibility_unit": visibility_unit,
-            "max_temperature_last_24_hours_value": max_temp_value,
-            "max_temperature_last_24_hours_unit": max_temp_unit,
-            "min_temperature_last_24_hours_value": min_temp_value,
-            "min_temperature_last_24_hours_unit": min_temp_unit,
-            "ingested_at": datetime.now(timezone.utc),
-        }
-
-        return pd.DataFrame([row])
+        return pd.DataFrame(rows)
 
     def write_table(self, df: pd.DataFrame) -> None:
-        spark_df = self.spark.createDataFrame(df, schema=self.schema)
+        ordered_df = df[self.schema.fieldNames()]
+        spark_df = self.spark.createDataFrame(ordered_df, schema=self.schema)
 
         if self.spark.catalog.tableExists(self.table_name):
-            row = df.iloc[0]
-            station_id = row["station_id"]
-            observation_timestamp = row["observation_timestamp"].isoformat()
-            self.spark.sql(
-                "DELETE FROM "
-                f"{self.table_name} "
-                f"WHERE station_id = '{station_id}' "
-                f"AND observation_timestamp = '{observation_timestamp}'"
-            )
+            for _, row in df.iterrows():
+                station_id = row["station_id"]
+                observation_timestamp = row["observation_timestamp"].isoformat()
+                self.spark.sql(
+                    "DELETE FROM "
+                    f"{self.table_name} "
+                    f"WHERE station_id = '{station_id}' "
+                    f"AND observation_timestamp = '{observation_timestamp}'"
+                )
             (
                 spark_df.write.format("delta")
                 .mode("append")
