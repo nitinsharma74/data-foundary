@@ -1,8 +1,8 @@
-# This is a Databricks asset bundle definition for databricks_project_bundle.
+# This is a Databricks asset bundle definition for reddit_sentiment_analysis.
 # See https://docs.databricks.com/dev-tools/bundles/index.html for documentation.
 bundle:
-  name: hourly_weather_report
-  uuid: d0df089b-bcfc-40d2-b761-69d5ef183bc4
+  name: reddit_sentiment_analysis
+  uuid: e047d8e5-880d-44a3-a960-bd853597fdae
 
 include:
   - resources/*.yml

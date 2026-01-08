@@ -1,0 +1,21 @@
+resources:
+  jobs:
+    reddit_sentiment_analysis_daily:
+      name: reddit-sentiment-analysis-daily
+
+      schedule:
+        quartz_cron_expression: "0 0 9 * * ?"
+        timezone_id: "America/Mexico_City"
+        pause_status: "UNPAUSED"
+
+      tasks:
+        - task_key: run_reddit_sentiment_analysis
+          environment_key: "reddit_env"
+          spark_python_task:
+            python_file: ${workspace.file_path}/src/get_reddit_data.py
+
+      environments:
+        - environment_key: "reddit_env"
+          spec:
+            environment_version: "3"
+            dependencies: []

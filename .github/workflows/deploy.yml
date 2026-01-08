@@ -29,6 +29,13 @@ jobs:
       working-directory: hourly_weather_report
       run: databricks bundle validate
 
+    - name: Validate reddit bundle
+      env:
+        DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+        DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+      working-directory: reddit_sentiment_analysis
+      run: databricks bundle validate
+
   deploy:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor != 'nektos/act' }}
     runs-on: ubuntu-latest
@@ -48,6 +55,15 @@ jobs:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
         working-directory: hourly_weather_report
+        run: |
+          databricks bundle validate
+          databricks bundle deploy --target ${{ secrets.BUNDLE_TARGET }} --auto-approve
+
+      - name: Deploy Reddit Bundle
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        working-directory: reddit_sentiment_analysis
         run: |
           databricks bundle validate
           databricks bundle deploy --target ${{ secrets.BUNDLE_TARGET }} --auto-approve
