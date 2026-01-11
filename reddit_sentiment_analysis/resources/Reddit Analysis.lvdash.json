@@ -1,0 +1,351 @@
+{
+  "datasets": [
+    {
+      "name": "b4a8461d",
+      "displayName": "Untitled dataset",
+      "queryLines": [
+        "select \n",
+        "    title,\n",
+        "    ups,\n",
+        "    downs,\n",
+        "    score,\n",
+        "    num_comments,\n",
+        "    date(created_utc) as created_utc_date,\n",
+        "    upvote_ratio,\n",
+        "    link_flair_text,\n",
+        "    url\n",
+        "from dev_reddit_data\n",
+        "order by created_utc desc"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "07d5ce2e",
+      "displayName": "Reddit Data Analysis",
+      "layout": [
+        {
+          "widget": {
+            "name": "4d7c2154",
+            "multilineTextboxSpec": {
+              "lines": [
+                "# <span style=\"text-align:center;display:block;\">Reddit Analysis</span>"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "eeb20deb",
+            "multilineTextboxSpec": {
+              "lines": [
+                "- **`ups`** – Number of **upvotes** the post received\n",
+                "- **`downs`** – Number of **downvotes** the post received *(often hidden or deprecated by Reddit)*\n",
+                "- **`score`** – **Net score** of the post (roughly `ups − downs`, with Reddit fuzzing)\n",
+                "- **`is_self`** – Whether the post is a **text (self) post** rather than a link\n",
+                "- **`is_video`** – Whether the post **contains a video**\n",
+                "- **`upvote_ratio`** – Fraction of upvotes out of total votes (`ups / (ups + downs)`)"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 1,
+            "width": 6,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "02df9bae",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "b4a8461d",
+                  "fields": [
+                    {
+                      "name": "daily(created_utc_date)",
+                      "expression": "DATE_TRUNC(\"DAY\", `created_utc_date`)"
+                    },
+                    {
+                      "name": "count(*)",
+                      "expression": "COUNT(`*`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "daily(created_utc_date)",
+                  "displayName": "Date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "count(*)",
+                  "displayName": "Count",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Reddits Per Day"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 7,
+            "width": 6,
+            "height": 5
+          }
+        },
+        {
+          "widget": {
+            "name": "6ff13da0",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "b4a8461d",
+                  "fields": [
+                    {
+                      "name": "link_flair_text",
+                      "expression": "`link_flair_text`"
+                    },
+                    {
+                      "name": "daily(created_utc_date)",
+                      "expression": "DATE_TRUNC(\"DAY\", `created_utc_date`)"
+                    },
+                    {
+                      "name": "count(*)",
+                      "expression": "COUNT(`*`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "daily(created_utc_date)",
+                  "displayName": "Date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "count(*)",
+                  "displayName": "Count",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "link_flair_text",
+                  "legend": {
+                    "position": "bottom"
+                  },
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Reddits Per Day Per Flare"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 12,
+            "width": 6,
+            "height": 5
+          }
+        },
+        {
+          "widget": {
+            "name": "480167fa",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "b4a8461d",
+                  "fields": [
+                    {
+                      "name": "daily(created_utc_date)",
+                      "expression": "DATE_TRUNC(\"DAY\", `created_utc_date`)"
+                    },
+                    {
+                      "name": "count(*)",
+                      "expression": "COUNT(`*`)"
+                    }
+                  ],
+                  "disaggregated": false,
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "DATE_TRUNC(\"DAY\", `created_utc_date`)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "count(*)"
+                },
+                "period": {
+                  "fieldName": "daily(created_utc_date)"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Daily Count"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 4,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "dfc1e66f",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "b4a8461d",
+                  "fields": [
+                    {
+                      "name": "weekly(created_utc_date)",
+                      "expression": "DATE_TRUNC(\"WEEK\", `created_utc_date`)"
+                    },
+                    {
+                      "name": "count(*)",
+                      "expression": "COUNT(`*`)"
+                    }
+                  ],
+                  "disaggregated": false,
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "DATE_TRUNC(\"WEEK\", `created_utc_date`)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "count(*)"
+                },
+                "period": {
+                  "fieldName": "weekly(created_utc_date)"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Weekly Count"
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 4,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "080fcc85",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "b4a8461d",
+                  "fields": [
+                    {
+                      "name": "monthly(created_utc_date)",
+                      "expression": "DATE_TRUNC(\"MONTH\", `created_utc_date`)"
+                    },
+                    {
+                      "name": "count(*)",
+                      "expression": "COUNT(`*`)"
+                    }
+                  ],
+                  "disaggregated": false,
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "DATE_TRUNC(\"MONTH\", `created_utc_date`)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "count(*)"
+                },
+                "period": {
+                  "fieldName": "monthly(created_utc_date)"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Monthly Count"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 4,
+            "width": 2,
+            "height": 3
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS"
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "widgetHeaderAlignment": "ALIGNMENT_UNSPECIFIED"
+    },
+    "applyModeEnabled": false
+  }
+}
