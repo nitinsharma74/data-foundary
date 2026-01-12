@@ -3,7 +3,9 @@ from __future__ import annotations
 import argparse
 import html
 import logging
+from pathlib import Path
 
+import pandas as pd
 from pyspark.sql import DataFrame, SparkSession, functions as F
 from pyspark.sql.types import (
     BooleanType,
@@ -16,6 +18,8 @@ from pyspark.sql.types import (
 )
 
 logger = logging.getLogger(__name__)
+
+FIXTURE_FILENAME = "reddit_crunchyroll_60days.csv"
 
 SCHEMA = StructType(
     [
@@ -40,8 +44,37 @@ SCHEMA = StructType(
 )
 
 
-def _load_fixture_dataframe(spark: SparkSession, fixture_path: str) -> DataFrame:
+def _fixture_path() -> Path:
+    candidate_roots = []
+    try:
+        candidate_roots.append(Path(__file__).resolve())
+    except NameError:
+        pass
+    candidate_roots.append(Path.cwd())
+
+    searched = []
+    for root in candidate_roots:
+        for parent in [root, *root.parents]:
+            candidate = parent / "fixtures" / FIXTURE_FILENAME
+            searched.append(candidate)
+            if candidate.exists():
+                return candidate
+
+    searched_paths = "\n".join(str(path) for path in searched)
+    raise FileNotFoundError(
+        f"Unable to find fixture file. Paths tried:\n{searched_paths}"
+    )
+
+
+def _load_fixture_dataframe(spark: SparkSession) -> DataFrame:
+    fixture_path = _fixture_path()
     logger.info("Loading fixture data from %s", fixture_path)
+    if str(fixture_path).startswith("/Workspace/"):
+        pandas_df = pd.read_csv(fixture_path)
+        pandas_df["created_utc"] = pd.to_datetime(
+            pandas_df["created_utc"], errors="coerce", utc=True
+        ).dt.tz_convert(None)
+        return spark.createDataFrame(pandas_df, schema=SCHEMA)
     return spark.read.csv(str(fixture_path), header=True, schema=SCHEMA)
 
 
@@ -99,9 +132,9 @@ def _clean_reddit_dataframe(df: DataFrame) -> DataFrame:
     return cleaned
 
 
-def get_reddit_data(table_name: str, fixture_path: str) -> int:
+def get_reddit_data(table_name: str) -> int:
     spark = SparkSession.builder.getOrCreate()
-    df = _load_fixture_dataframe(spark, fixture_path)
+    df = _load_fixture_dataframe(spark)
     cleaned_df = _clean_reddit_dataframe(df)
 
     row_count = cleaned_df.count()
@@ -120,10 +153,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     parser = argparse.ArgumentParser(description="Load reddit data into Delta table.")
     parser.add_argument("--table-name", default=None)
-    parser.add_argument("--fixture-path", default=None)
     args = parser.parse_args()
     if not args.table_name:
         raise ValueError("table_name is required. Pass --table-name.")
-    if not args.fixture_path:
-        raise ValueError("fixture_path is required. Pass --fixture-path.")
-    get_reddit_data(table_name=args.table_name, fixture_path=args.fixture_path)
+    get_reddit_data(table_name=args.table_name)

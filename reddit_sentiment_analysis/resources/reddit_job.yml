@@ -16,8 +16,6 @@ resources:
             parameters:
               - "--table-name"
               - "workspace.default.${bundle.target}_reddit_data"
-              - "--fixture-path"
-              - "${workspace.file_path}/fixtures/reddit_crunchyroll_60days.csv"
 
       environments:
         - environment_key: "reddit_env"
