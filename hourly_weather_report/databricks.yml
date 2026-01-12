@@ -36,6 +36,11 @@ targets:
     variables:
       catalog: workspace
       schema: default
+    resources:
+      jobs:
+        hourly_weather_report:
+          schedule:
+            pause_status: "UNPAUSED"
     permissions:
       - group_name: users
         level: CAN_MANAGE

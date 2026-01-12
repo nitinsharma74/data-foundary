@@ -6,7 +6,7 @@ resources:
       schedule:
         quartz_cron_expression: "0 0 * * * ?"
         timezone_id: "America/Mexico_City"
-        pause_status: "UNPAUSED"
+        pause_status: "PAUSED"
       
       tasks:
         - task_key: run_hourly_weather

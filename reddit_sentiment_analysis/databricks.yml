@@ -36,6 +36,11 @@ targets:
     variables:
       catalog: workspace
       schema: default
+    resources:
+      jobs:
+        reddit_sentiment_analysis_daily:
+          schedule:
+            pause_status: "UNPAUSED"
     permissions:
       - group_name: users
         level: CAN_MANAGE

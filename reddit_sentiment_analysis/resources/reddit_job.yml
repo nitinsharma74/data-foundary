@@ -6,13 +6,18 @@ resources:
       schedule:
         quartz_cron_expression: "0 0 9 * * ?"
         timezone_id: "America/Mexico_City"
-        pause_status: "UNPAUSED"
+        pause_status: "PAUSED"
 
       tasks:
         - task_key: run_reddit_sentiment_analysis
           environment_key: "reddit_env"
           spark_python_task:
             python_file: ${workspace.file_path}/src/get_reddit_data.py
+            parameters:
+              - "--table-name"
+              - "workspace.default.${bundle.target}_reddit_data"
+              - "--fixture-path"
+              - "${workspace.file_path}/fixtures/reddit_crunchyroll_60days.csv"
 
       environments:
         - environment_key: "reddit_env"

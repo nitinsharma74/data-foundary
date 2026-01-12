@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-from pathlib import Path
-import os
+import argparse
 import html
 import logging
 
-import pandas as pd
-from pyspark.sql import SparkSession
+from pyspark.sql import DataFrame, SparkSession, functions as F
 from pyspark.sql.types import (
     BooleanType,
     DoubleType,
@@ -19,13 +17,11 @@ from pyspark.sql.types import (
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_TABLE_NAME = "reddit_data"
-DEFAULT_TARGET = "dev"
-FIXTURE_FILENAME = "reddit_crunchyroll_30days.csv"
 SCHEMA = StructType(
     [
         StructField("id", StringType(), True),
         StructField("title", StringType(), True),
+        StructField("selftext", StringType(), True),
         StructField("author", StringType(), True),
         StructField("ups", LongType(), True),
         StructField("downs", LongType(), True),
@@ -38,111 +34,96 @@ SCHEMA = StructType(
         StructField("is_video", BooleanType(), True),
         StructField("url", StringType(), True),
         StructField("permalink", StringType(), True),
+        StructField("sentiment_score", DoubleType(), True),
+        StructField("comments", StringType(), True),
     ]
 )
 
 
-def _fixture_path() -> Path:
-    candidate_roots = []
-    try:
-        candidate_roots.append(Path(__file__).resolve())
-    except NameError:
-        pass
-    candidate_roots.append(Path.cwd())
-
-    searched = []
-    for root in candidate_roots:
-        for parent in [root, *root.parents]:
-            candidate = parent / "fixtures" / FIXTURE_FILENAME
-            searched.append(candidate)
-            if candidate.exists():
-                return candidate
-
-    searched_paths = "\n".join(str(path) for path in searched)
-    raise FileNotFoundError(
-        f"Unable to find fixture file. Paths tried:\n{searched_paths}"
-    )
-
-
-def _load_fixture_dataframe() -> pd.DataFrame:
-    fixture_path = _fixture_path()
+def _load_fixture_dataframe(spark: SparkSession, fixture_path: str) -> DataFrame:
     logger.info("Loading fixture data from %s", fixture_path)
-    return pd.read_csv(fixture_path)
+    return spark.read.csv(str(fixture_path), header=True, schema=SCHEMA)
 
 
-def _normalize_boolean(value: object) -> bool | None:
-    if pd.isna(value):
+def _unescape_and_strip(value: str | None) -> str | None:
+    if value is None:
         return None
-    if isinstance(value, bool):
-        return value
-    return str(value).strip().lower() == "true"
+    return html.unescape(value).strip()
 
 
-def _clean_reddit_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-    cleaned = df.copy()
-    cleaned["title"] = cleaned["title"].apply(
-        lambda value: html.unescape(value).strip() if isinstance(value, str) else value
-    )
-    cleaned["author"] = cleaned["author"].apply(
-        lambda value: value.strip() if isinstance(value, str) else value
-    )
-    cleaned["link_flair_text"] = cleaned["link_flair_text"].apply(
-        lambda value: value.strip() if isinstance(value, str) else value
-    )
-    cleaned["url"] = cleaned["url"].apply(
-        lambda value: value.strip() if isinstance(value, str) else value
-    )
-    cleaned["permalink"] = cleaned["permalink"].apply(
-        lambda value: value.strip() if isinstance(value, str) else value
-    )
-    cleaned["created_utc"] = pd.to_datetime(
-        cleaned["created_utc"], errors="coerce", utc=True
-    ).dt.tz_convert(None)
+def _clean_reddit_dataframe(df: DataFrame) -> DataFrame:
+    unescape_udf = F.udf(_unescape_and_strip, StringType())
 
-    for column in ["ups", "downs", "score", "num_comments"]:
-        cleaned[column] = pd.to_numeric(cleaned[column], errors="coerce").astype("Int64")
+    def _trim_or_null(col_name: str) -> F.Column:
+        return F.when(F.col(col_name).isNotNull(), F.trim(F.col(col_name))).otherwise(
+            None
+        )
 
-    cleaned["upvote_ratio"] = pd.to_numeric(
-        cleaned["upvote_ratio"], errors="coerce"
+    cleaned = df.select(
+        F.col("id"),
+        unescape_udf(F.col("title")).alias("title"),
+        unescape_udf(F.col("selftext")).alias("selftext"),
+        _trim_or_null("author").alias("author"),
+        F.col("ups").cast("long").alias("ups"),
+        F.col("downs").cast("long").alias("downs"),
+        F.col("score").cast("long").alias("score"),
+        F.col("num_comments").cast("long").alias("num_comments"),
+        F.to_timestamp(F.col("created_utc")).alias("created_utc"),
+        F.col("upvote_ratio").cast("double").alias("upvote_ratio"),
+        _trim_or_null("link_flair_text").alias("link_flair_text"),
+        F.when(
+            F.col("is_self").isNull(),
+            None,
+        )
+        .otherwise(
+            F.lower(F.trim(F.col("is_self").cast("string"))) == F.lit("true")
+        )
+        .alias("is_self"),
+        F.when(
+            F.col("is_video").isNull(),
+            None,
+        )
+        .otherwise(
+            F.lower(F.trim(F.col("is_video").cast("string"))) == F.lit("true")
+        )
+        .alias("is_video"),
+        _trim_or_null("url").alias("url"),
+        _trim_or_null("permalink").alias("permalink"),
+        F.col("sentiment_score").cast("double").alias("sentiment_score"),
+        F.col("comments").alias("comments"),
     )
-    cleaned["is_self"] = cleaned["is_self"].apply(_normalize_boolean)
-    cleaned["is_video"] = cleaned["is_video"].apply(_normalize_boolean)
 
-    cleaned = cleaned.dropna(subset=["id"])
-    cleaned = cleaned.drop_duplicates(subset=["id"])
-    cleaned = cleaned[SCHEMA.fieldNames()]
+    cleaned = cleaned.filter(F.col("id").isNotNull())
+    cleaned = cleaned.dropDuplicates(["id"])
+    cleaned = cleaned.select(*SCHEMA.fieldNames())
     return cleaned
 
 
-def _resolve_table_name(table_name: str | None) -> str:
-    if table_name:
-        return table_name
-
-    target = os.getenv("DATABRICKS_BUNDLE_TARGET") or os.getenv("BUNDLE_TARGET") or os.getenv("ENV") or DEFAULT_TARGET
-    target = target.strip().lower()
-    if target == "prod":
-        return "prod_reddit_data"
-    return "dev_reddit_data"
-
-
-def get_reddit_data(table_name: str | None = None) -> int:
+def get_reddit_data(table_name: str, fixture_path: str) -> int:
     spark = SparkSession.builder.getOrCreate()
-    df = _load_fixture_dataframe()
+    df = _load_fixture_dataframe(spark, fixture_path)
     cleaned_df = _clean_reddit_dataframe(df)
 
-    resolved_table_name = _resolve_table_name(table_name)
-    logger.info("Writing %d cleaned rows to table=%s", len(cleaned_df.index), resolved_table_name)
-    spark_df = spark.createDataFrame(cleaned_df, schema=SCHEMA)
-    spark.sql(f"DROP TABLE IF EXISTS {resolved_table_name}")
+    row_count = cleaned_df.count()
+    logger.info("Writing %d cleaned rows to table=%s", row_count, table_name)
+    spark.sql(f"DROP TABLE IF EXISTS {table_name}")
     (
-        spark_df.write.format("delta")
+        cleaned_df.write.format("delta")
         .mode("overwrite")
         .option("overwriteSchema", "true")
-        .saveAsTable(resolved_table_name)
+        .saveAsTable(table_name)
     )
-    return len(cleaned_df.index)
+    return row_count
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    get_reddit_data()
+    parser = argparse.ArgumentParser(description="Load reddit data into Delta table.")
+    parser.add_argument("--table-name", default=None)
+    parser.add_argument("--fixture-path", default=None)
+    args = parser.parse_args()
+    if not args.table_name:
+        raise ValueError("table_name is required. Pass --table-name.")
+    if not args.fixture_path:
+        raise ValueError("fixture_path is required. Pass --fixture-path.")
+    get_reddit_data(table_name=args.table_name, fixture_path=args.fixture_path)
