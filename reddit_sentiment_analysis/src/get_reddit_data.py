@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_TABLE_NAME = "reddit_data"
 DEFAULT_TARGET = "dev"
-FIXTURE_FILENAME = "reddit_netflix_7days.csv"
+FIXTURE_FILENAME = "reddit_crunchyroll_30days.csv"
 SCHEMA = StructType(
     [
         StructField("id", StringType(), True),
