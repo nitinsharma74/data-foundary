@@ -4,7 +4,62 @@
       "name": "b4a8461d",
       "displayName": "Reddit Data",
       "queryLines": [
-        "WITH enriched_reddit_data AS (  SELECT    *,    CAST(to_timestamp(created_utc) AS DATE) AS event_date,    CASE      WHEN sentiment_score > 0.05 THEN 'Positive'      WHEN sentiment_score < -0.05 THEN 'Negative'      ELSE 'Neutral'    END AS sentiment_bucket,    CASE      WHEN (num_comments + score) > 50 THEN '4-Viral'      WHEN (num_comments + score) > 20 THEN '3-High'      WHEN (num_comments + score) > 5 THEN '2-Medium'      ELSE '1-Low'    END AS engagement_level,    CASE      WHEN link_flair_text IN ('Streaming | Technical Issue', 'Technical Issue') OR lower(title) LIKE '%bug%' OR lower(title) LIKE '%error%' THEN 'Technical/Product'      WHEN link_flair_text IN ('Account/Membership', 'Manga', 'Dubs') THEN 'Billing/Service'      WHEN link_flair_text IN ('Simulcast', 'Service Discussion') THEN 'Content/Catalog'      ELSE 'General/Other'    END AS issue_category,    CASE      WHEN lower(title) LIKE '%tv%' OR lower(title) LIKE '%roku%' OR lower(title) LIKE '%lg%' THEN 'Smart TV'      WHEN lower(title) LIKE '%app%' OR lower(title) LIKE '%mobile%' OR lower(title) LIKE '%android%' OR lower(title) LIKE '%iphone%' THEN 'Mobile App'      WHEN lower(title) LIKE '%macbook%' OR lower(title) LIKE '%browser%' OR lower(title) LIKE '%laptop%' OR lower(title) LIKE '%pc%' THEN 'Web/Desktop'      ELSE 'Unknown/General'    END AS platform_detected  FROM prod_reddit_data)SELECT * FROM enriched_reddit_data"
+        "WITH enriched_reddit_data AS (\n",
+        "    SELECT\n",
+        "        *,\n",
+        "        CAST(TO_TIMESTAMP(created_utc) AS DATE) AS event_date,\n",
+        "\n",
+        "        CASE\n",
+        "            WHEN sentiment_score > 0.05 THEN 'Positive'\n",
+        "            WHEN sentiment_score < -0.05 THEN 'Negative'\n",
+        "            ELSE 'Neutral'\n",
+        "        END AS sentiment_bucket,\n",
+        "\n",
+        "        CASE\n",
+        "            WHEN (num_comments + score) > 50 THEN '4-Viral'\n",
+        "            WHEN (num_comments + score) > 20 THEN '3-High'\n",
+        "            WHEN (num_comments + score) > 5  THEN '2-Medium'\n",
+        "            ELSE '1-Low'\n",
+        "        END AS engagement_level,\n",
+        "\n",
+        "        CASE\n",
+        "            WHEN link_flair_text IN ('Streaming | Technical Issue', 'Technical Issue')\n",
+        "                 OR LOWER(title) LIKE '%bug%'\n",
+        "                 OR LOWER(title) LIKE '%error%'\n",
+        "                 OR LOWER(title) LIKE '%crash%'\n",
+        "                 OR LOWER(title) LIKE '%issue%'\n",
+        "                THEN 'Technical/Product'\n",
+        "            WHEN link_flair_text IN ('Account/Membership', 'Manga', 'Dubs')\n",
+        "                THEN 'Billing/Service'\n",
+        "            WHEN link_flair_text IN ('Simulcast', 'Service Discussion')\n",
+        "                THEN 'Content/Catalog'\n",
+        "            ELSE 'General/Other'\n",
+        "        END AS issue_category,\n",
+        "\n",
+        "        CASE\n",
+        "            WHEN LOWER(title) LIKE '%tv%'\n",
+        "                 OR LOWER(title) LIKE '%roku%'\n",
+        "                 OR LOWER(title) LIKE '%lg%'\n",
+        "                THEN 'Smart TV'\n",
+        "            WHEN LOWER(title) LIKE '%app%'\n",
+        "                 OR LOWER(title) LIKE '%mobile%'\n",
+        "                 OR LOWER(title) LIKE '%android%'\n",
+        "                 OR LOWER(title) LIKE '%iphone%'\n",
+        "                THEN 'Mobile App'\n",
+        "            WHEN LOWER(title) LIKE '%macbook%'\n",
+        "                 OR LOWER(title) LIKE '%browser%'\n",
+        "                 OR LOWER(title) LIKE '%laptop%'\n",
+        "                 OR LOWER(title) LIKE '%pc%'\n",
+        "                 OR LOWER(title) LIKE '%computer%'\n",
+        "                THEN 'Web/Desktop'\n",
+        "            ELSE 'Unknown/General'\n",
+        "        END AS platform_detected\n",
+        "\n",
+        "    FROM prod_reddit_data\n",
+        ")\n",
+        "\n",
+        "SELECT *\n",
+        "FROM enriched_reddit_data;\n"
       ]
     },
     {
@@ -27,27 +82,38 @@
         "      ELSE '1-Low'\n",
         "    END AS engagement_level,\n",
         "    CASE\n",
-        "      WHEN link_flair_text IN ('Streaming | Technical Issue', 'Technical Issue')\n",
-        "        OR lower(title) LIKE '%bug%'\n",
-        "        OR lower(title) LIKE '%error%' THEN 'Technical/Product'\n",
-        "      WHEN link_flair_text IN ('Account/Membership', 'Manga', 'Dubs') THEN 'Billing/Service'\n",
-        "      WHEN link_flair_text IN ('Simulcast', 'Service Discussion') THEN 'Content/Catalog'\n",
-        "      ELSE 'General/Other'\n",
-        "    END AS issue_category,\n",
-        "    CASE\n",
-        "      WHEN lower(title) LIKE '%tv%'\n",
-        "        OR lower(title) LIKE '%roku%'\n",
-        "        OR lower(title) LIKE '%lg%' THEN 'Smart TV'\n",
-        "      WHEN lower(title) LIKE '%app%'\n",
-        "        OR lower(title) LIKE '%mobile%'\n",
-        "        OR lower(title) LIKE '%android%'\n",
-        "        OR lower(title) LIKE '%iphone%' THEN 'Mobile App'\n",
-        "      WHEN lower(title) LIKE '%macbook%'\n",
-        "        OR lower(title) LIKE '%browser%'\n",
-        "        OR lower(title) LIKE '%laptop%'\n",
-        "        OR lower(title) LIKE '%pc%' THEN 'Web/Desktop'\n",
-        "      ELSE 'Unknown/General'\n",
-        "    END AS platform_detected\n",
+        "            WHEN link_flair_text IN ('Streaming | Technical Issue', 'Technical Issue')\n",
+        "                 OR LOWER(title) LIKE '%bug%'\n",
+        "                 OR LOWER(title) LIKE '%error%'\n",
+        "                 OR LOWER(title) LIKE '%crash%'\n",
+        "                 OR LOWER(title) LIKE '%issue%'\n",
+        "                THEN 'Technical/Product'\n",
+        "            WHEN link_flair_text IN ('Account/Membership', 'Manga', 'Dubs')\n",
+        "                THEN 'Billing/Service'\n",
+        "            WHEN link_flair_text IN ('Simulcast', 'Service Discussion')\n",
+        "                THEN 'Content/Catalog'\n",
+        "            ELSE 'General/Other'\n",
+        "        END AS issue_category,\n",
+        "\n",
+        "        CASE\n",
+        "            WHEN LOWER(title) LIKE '%tv%'\n",
+        "                 OR LOWER(title) LIKE '%roku%'\n",
+        "                 OR LOWER(title) LIKE '%lg%'\n",
+        "                THEN 'Smart TV'\n",
+        "            WHEN LOWER(title) LIKE '%app%'\n",
+        "                 OR LOWER(title) LIKE '%mobile%'\n",
+        "                 OR LOWER(title) LIKE '%android%'\n",
+        "                 OR LOWER(title) LIKE '%iphone%'\n",
+        "                THEN 'Mobile App'\n",
+        "            WHEN LOWER(title) LIKE '%macbook%'\n",
+        "                 OR LOWER(title) LIKE '%browser%'\n",
+        "                 OR LOWER(title) LIKE '%laptop%'\n",
+        "                 OR LOWER(title) LIKE '%pc%'\n",
+        "                 OR LOWER(title) LIKE '%computer%'\n",
+        "                THEN 'Web/Desktop'\n",
+        "            ELSE 'Unknown/General'\n",
+        "        END AS platform_detected\n",
+        "\n",
         "  FROM prod_reddit_data\n",
         ")\n",
         "SELECT\n",
@@ -175,7 +241,7 @@
           "position": {
             "x": 0,
             "y": 1,
-            "width": 12,
+            "width": 2,
             "height": 3
           }
         },
@@ -217,9 +283,9 @@
             }
           },
           "position": {
-            "x": 0,
-            "y": 4,
-            "width": 12,
+            "x": 2,
+            "y": 1,
+            "width": 2,
             "height": 3
           }
         },
@@ -261,9 +327,9 @@
             }
           },
           "position": {
-            "x": 0,
-            "y": 7,
-            "width": 12,
+            "x": 4,
+            "y": 1,
+            "width": 8,
             "height": 3
           }
         },
@@ -319,7 +385,7 @@
           },
           "position": {
             "x": 0,
-            "y": 10,
+            "y": 4,
             "width": 12,
             "height": 5
           }
@@ -387,7 +453,7 @@
           },
           "position": {
             "x": 0,
-            "y": 15,
+            "y": 14,
             "width": 12,
             "height": 5
           }
@@ -441,7 +507,7 @@
           },
           "position": {
             "x": 0,
-            "y": 20,
+            "y": 19,
             "width": 12,
             "height": 5
           }
@@ -500,7 +566,7 @@
           },
           "position": {
             "x": 0,
-            "y": 25,
+            "y": 24,
             "width": 12,
             "height": 5
           }
@@ -568,7 +634,7 @@
           },
           "position": {
             "x": 0,
-            "y": 30,
+            "y": 29,
             "width": 12,
             "height": 6
           }
@@ -636,7 +702,7 @@
           },
           "position": {
             "x": 0,
-            "y": 36,
+            "y": 35,
             "width": 12,
             "height": 6
           }
@@ -690,7 +756,7 @@
           },
           "position": {
             "x": 0,
-            "y": 42,
+            "y": 41,
             "width": 12,
             "height": 5
           }
@@ -753,7 +819,7 @@
           },
           "position": {
             "x": 0,
-            "y": 47,
+            "y": 46,
             "width": 12,
             "height": 5
           }
@@ -830,7 +896,7 @@
           },
           "position": {
             "x": 0,
-            "y": 52,
+            "y": 51,
             "width": 12,
             "height": 5
           }
@@ -1477,7 +1543,7 @@
           },
           "position": {
             "x": 0,
-            "y": 57,
+            "y": 56,
             "width": 12,
             "height": 8
           }
@@ -1547,7 +1613,7 @@
           },
           "position": {
             "x": 0,
-            "y": 15,
+            "y": 9,
             "width": 12,
             "height": 5
           }
