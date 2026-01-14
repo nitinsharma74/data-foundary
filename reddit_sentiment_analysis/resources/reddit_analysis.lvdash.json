@@ -4,86 +4,117 @@
       "name": "b4a8461d",
       "displayName": "Reddit Data",
       "queryLines": [
-        "WITH enriched_reddit_data AS (",
-        "  SELECT",
-        "    *,",
-        "    CAST(to_timestamp(created_utc) AS DATE) AS event_date,",
-        "    CASE",
-        "      WHEN sentiment_score > 0.05 THEN 'Positive'",
-        "      WHEN sentiment_score < -0.05 THEN 'Negative'",
-        "      ELSE 'Neutral'",
-        "    END AS sentiment_bucket,",
-        "    CASE",
-        "      WHEN (num_comments + score) > 50 THEN '4-Viral'",
-        "      WHEN (num_comments + score) > 20 THEN '3-High'",
-        "      WHEN (num_comments + score) > 5 THEN '2-Medium'",
-        "      ELSE '1-Low'",
-        "    END AS engagement_level,",
-        "    CASE",
-        "      WHEN link_flair_text IN ('Streaming | Technical Issue', 'Technical Issue') OR lower(title) LIKE '%bug%' OR lower(title) LIKE '%error%' THEN 'Technical/Product'",
-        "      WHEN link_flair_text IN ('Account/Membership', 'Manga', 'Dubs') THEN 'Billing/Service'",
-        "      WHEN link_flair_text IN ('Simulcast', 'Service Discussion') THEN 'Content/Catalog'",
-        "      ELSE 'General/Other'",
-        "    END AS issue_category,",
-        "    CASE",
-        "      WHEN lower(title) LIKE '%tv%' OR lower(title) LIKE '%roku%' OR lower(title) LIKE '%lg%' THEN 'Smart TV'",
-        "      WHEN lower(title) LIKE '%app%' OR lower(title) LIKE '%mobile%' OR lower(title) LIKE '%android%' OR lower(title) LIKE '%iphone%' THEN 'Mobile App'",
-        "      WHEN lower(title) LIKE '%macbook%' OR lower(title) LIKE '%browser%' OR lower(title) LIKE '%laptop%' OR lower(title) LIKE '%pc%' THEN 'Web/Desktop'",
-        "      ELSE 'Unknown/General'",
-        "    END AS platform_detected",
-        "  FROM prod_reddit_data",
-        ")",
-        "SELECT * FROM enriched_reddit_data"
+        "WITH enriched_reddit_data AS (  SELECT    *,    CAST(to_timestamp(created_utc) AS DATE) AS event_date,    CASE      WHEN sentiment_score > 0.05 THEN 'Positive'      WHEN sentiment_score < -0.05 THEN 'Negative'      ELSE 'Neutral'    END AS sentiment_bucket,    CASE      WHEN (num_comments + score) > 50 THEN '4-Viral'      WHEN (num_comments + score) > 20 THEN '3-High'      WHEN (num_comments + score) > 5 THEN '2-Medium'      ELSE '1-Low'    END AS engagement_level,    CASE      WHEN link_flair_text IN ('Streaming | Technical Issue', 'Technical Issue') OR lower(title) LIKE '%bug%' OR lower(title) LIKE '%error%' THEN 'Technical/Product'      WHEN link_flair_text IN ('Account/Membership', 'Manga', 'Dubs') THEN 'Billing/Service'      WHEN link_flair_text IN ('Simulcast', 'Service Discussion') THEN 'Content/Catalog'      ELSE 'General/Other'    END AS issue_category,    CASE      WHEN lower(title) LIKE '%tv%' OR lower(title) LIKE '%roku%' OR lower(title) LIKE '%lg%' THEN 'Smart TV'      WHEN lower(title) LIKE '%app%' OR lower(title) LIKE '%mobile%' OR lower(title) LIKE '%android%' OR lower(title) LIKE '%iphone%' THEN 'Mobile App'      WHEN lower(title) LIKE '%macbook%' OR lower(title) LIKE '%browser%' OR lower(title) LIKE '%laptop%' OR lower(title) LIKE '%pc%' THEN 'Web/Desktop'      ELSE 'Unknown/General'    END AS platform_detected  FROM prod_reddit_data)SELECT * FROM enriched_reddit_data"
       ]
     },
     {
       "name": "neg_posts_ds",
       "displayName": "Top Negative Posts",
       "queryLines": [
-        "WITH enriched_reddit_data AS (",
-        "  SELECT",
-        "    *,",
-        "    CAST(to_timestamp(created_utc) AS DATE) AS event_date,",
-        "    CASE",
-        "      WHEN sentiment_score > 0.05 THEN 'Positive'",
-        "      WHEN sentiment_score < -0.05 THEN 'Negative'",
-        "      ELSE 'Neutral'",
-        "    END AS sentiment_bucket,",
-        "    CASE",
-        "      WHEN (num_comments + score) > 50 THEN '4-Viral'",
-        "      WHEN (num_comments + score) > 20 THEN '3-High'",
-        "      WHEN (num_comments + score) > 5 THEN '2-Medium'",
-        "      ELSE '1-Low'",
-        "    END AS engagement_level,",
-        "    CASE",
-        "      WHEN link_flair_text IN ('Streaming | Technical Issue', 'Technical Issue') OR lower(title) LIKE '%bug%' OR lower(title) LIKE '%error%' THEN 'Technical/Product'",
-        "      WHEN link_flair_text IN ('Account/Membership', 'Manga', 'Dubs') THEN 'Billing/Service'",
-        "      WHEN link_flair_text IN ('Simulcast', 'Service Discussion') THEN 'Content/Catalog'",
-        "      ELSE 'General/Other'",
-        "    END AS issue_category,",
-        "    CASE",
-        "      WHEN lower(title) LIKE '%tv%' OR lower(title) LIKE '%roku%' OR lower(title) LIKE '%lg%' THEN 'Smart TV'",
-        "      WHEN lower(title) LIKE '%app%' OR lower(title) LIKE '%mobile%' OR lower(title) LIKE '%android%' OR lower(title) LIKE '%iphone%' THEN 'Mobile App'",
-        "      WHEN lower(title) LIKE '%macbook%' OR lower(title) LIKE '%browser%' OR lower(title) LIKE '%laptop%' OR lower(title) LIKE '%pc%' THEN 'Web/Desktop'",
-        "      ELSE 'Unknown/General'",
-        "    END AS platform_detected",
-        "  FROM prod_reddit_data",
-        ")",
-        "SELECT",
-        "  event_date,",
-        "  title,",
-        "  permalink,",
-        "  issue_category,",
-        "  platform_detected,",
-        "  engagement_level,",
-        "  score,",
-        "  num_comments,",
-        "  sentiment_bucket,",
-        "  (num_comments + score) AS engagement_total",
-        "FROM enriched_reddit_data",
-        "WHERE sentiment_bucket = 'Negative'",
-        "ORDER BY engagement_total DESC",
-        "LIMIT 50"
+        "WITH enriched_reddit_data AS (\n",
+        "  SELECT\n",
+        "    *,\n",
+        "    CAST(to_timestamp(created_utc) AS DATE) AS event_date,\n",
+        "    CASE\n",
+        "      WHEN sentiment_score > 0.05 THEN 'Positive'\n",
+        "      WHEN sentiment_score < -0.05 THEN 'Negative'\n",
+        "      ELSE 'Neutral'\n",
+        "    END AS sentiment_bucket,\n",
+        "    CASE\n",
+        "      WHEN (num_comments + score) > 50 THEN '4-Viral'\n",
+        "      WHEN (num_comments + score) > 20 THEN '3-High'\n",
+        "      WHEN (num_comments + score) > 5 THEN '2-Medium'\n",
+        "      ELSE '1-Low'\n",
+        "    END AS engagement_level,\n",
+        "    CASE\n",
+        "      WHEN link_flair_text IN ('Streaming | Technical Issue', 'Technical Issue')\n",
+        "        OR lower(title) LIKE '%bug%'\n",
+        "        OR lower(title) LIKE '%error%' THEN 'Technical/Product'\n",
+        "      WHEN link_flair_text IN ('Account/Membership', 'Manga', 'Dubs') THEN 'Billing/Service'\n",
+        "      WHEN link_flair_text IN ('Simulcast', 'Service Discussion') THEN 'Content/Catalog'\n",
+        "      ELSE 'General/Other'\n",
+        "    END AS issue_category,\n",
+        "    CASE\n",
+        "      WHEN lower(title) LIKE '%tv%'\n",
+        "        OR lower(title) LIKE '%roku%'\n",
+        "        OR lower(title) LIKE '%lg%' THEN 'Smart TV'\n",
+        "      WHEN lower(title) LIKE '%app%'\n",
+        "        OR lower(title) LIKE '%mobile%'\n",
+        "        OR lower(title) LIKE '%android%'\n",
+        "        OR lower(title) LIKE '%iphone%' THEN 'Mobile App'\n",
+        "      WHEN lower(title) LIKE '%macbook%'\n",
+        "        OR lower(title) LIKE '%browser%'\n",
+        "        OR lower(title) LIKE '%laptop%'\n",
+        "        OR lower(title) LIKE '%pc%' THEN 'Web/Desktop'\n",
+        "      ELSE 'Unknown/General'\n",
+        "    END AS platform_detected\n",
+        "  FROM prod_reddit_data\n",
+        ")\n",
+        "SELECT\n",
+        "  event_date,\n",
+        "  title,\n",
+        "  permalink,\n",
+        "  issue_category,\n",
+        "  platform_detected,\n",
+        "  engagement_level,\n",
+        "  score,\n",
+        "  num_comments,\n",
+        "  sentiment_bucket,\n",
+        "  (num_comments + score) AS engagement_total\n",
+        "FROM enriched_reddit_data\n",
+        "WHERE sentiment_bucket = 'Negative'\n",
+        "ORDER BY engagement_total DESC"
+      ]
+    },
+    {
+      "name": "bf408d0f",
+      "displayName": "Reddit Daily KPIs",
+      "queryLines": [
+        "WITH enriched_reddit_data AS (\n",
+        "  SELECT\n",
+        "    *,\n",
+        "    CAST(to_timestamp(created_utc) AS DATE) AS event_date,\n",
+        "    CASE\n",
+        "      WHEN sentiment_score > 0.05 THEN 'Positive'\n",
+        "      WHEN sentiment_score < -0.05 THEN 'Negative'\n",
+        "      ELSE 'Neutral'\n",
+        "    END AS sentiment_bucket,\n",
+        "    CASE\n",
+        "      WHEN (num_comments + score) > 50 THEN '4-Viral'\n",
+        "      WHEN (num_comments + score) > 20 THEN '3-High'\n",
+        "      WHEN (num_comments + score) > 5 THEN '2-Medium'\n",
+        "      ELSE '1-Low'\n",
+        "    END AS engagement_level\n",
+        "  FROM prod_reddit_data\n",
+        "),\n",
+        "\n",
+        "daily_kpis AS (\n",
+        "  SELECT\n",
+        "    event_date,\n",
+        "    COUNT(*) AS total_posts,\n",
+        "    SUM(CASE WHEN sentiment_bucket = 'Positive' THEN 1 ELSE 0 END) AS positive_posts,\n",
+        "    SUM(CASE WHEN sentiment_bucket = 'Negative' THEN 1 ELSE 0 END) AS negative_posts,\n",
+        "    SUM(\n",
+        "      CASE\n",
+        "        WHEN sentiment_bucket = 'Negative'\n",
+        "         AND engagement_level = '4-Viral'\n",
+        "        THEN 1\n",
+        "        ELSE 0\n",
+        "      END\n",
+        "    ) AS viral_negative_posts\n",
+        "  FROM enriched_reddit_data\n",
+        "  GROUP BY event_date\n",
+        ")\n",
+        "\n",
+        "SELECT\n",
+        "  event_date,\n",
+        "  total_posts,\n",
+        "  viral_negative_posts,\n",
+        "  COALESCE(\n",
+        "    (positive_posts - negative_posts) * 1.0 / NULLIF(total_posts, 0),\n",
+        "    0.0\n",
+        "  ) AS net_sentiment_score\n",
+        "FROM daily_kpis;\n"
       ]
     }
   ],
@@ -105,7 +136,7 @@
             "x": 0,
             "y": 0,
             "width": 12,
-            "height": 2
+            "height": 1
           }
         },
         {
@@ -143,7 +174,7 @@
           },
           "position": {
             "x": 0,
-            "y": 2,
+            "y": 1,
             "width": 12,
             "height": 3
           }
@@ -155,14 +186,19 @@
               {
                 "name": "main_query",
                 "query": {
-                  "datasetName": "b4a8461d",
+                  "datasetName": "bf408d0f",
                   "fields": [
                     {
                       "name": "net_sentiment_score",
-                      "expression": "(SUM(CASE WHEN `sentiment_bucket` = 'Positive' THEN 1 ELSE 0 END) - SUM(CASE WHEN `sentiment_bucket` = 'Negative' THEN 1 ELSE 0 END)) / COUNT(`*`)"
+                      "expression": "`net_sentiment_score`"
                     }
                   ],
-                  "disaggregated": false
+                  "filters": [
+                    {
+                      "expression": "IN_RANGE(`event_date`, PARSE_RELATIVE_DATE('now-7d/d', 'FLOOR'), PARSE_RELATIVE_DATE('now/d', 'CEIL'))"
+                    }
+                  ],
+                  "disaggregated": true
                 }
               }
             ],
@@ -171,19 +207,18 @@
               "widgetType": "counter",
               "encodings": {
                 "value": {
-                  "fieldName": "net_sentiment_score",
-                  "displayName": "Net Sentiment Score"
+                  "fieldName": "net_sentiment_score"
                 }
               },
               "frame": {
                 "showTitle": true,
-                "title": "Net Sentiment Score"
+                "title": "Net Sentiment  ( Last 7 Days)"
               }
             }
           },
           "position": {
             "x": 0,
-            "y": 5,
+            "y": 4,
             "width": 12,
             "height": 3
           }
@@ -195,11 +230,16 @@
               {
                 "name": "main_query",
                 "query": {
-                  "datasetName": "b4a8461d",
+                  "datasetName": "bf408d0f",
                   "fields": [
                     {
-                      "name": "viral_negative_count",
-                      "expression": "SUM(CASE WHEN `sentiment_bucket` = 'Negative' AND `engagement_level` = '4-Viral' THEN 1 ELSE 0 END)"
+                      "name": "sum(viral_negative_posts)",
+                      "expression": "SUM(`viral_negative_posts`)"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "expression": "IN_RANGE(`event_date`, PARSE_RELATIVE_DATE('now-7d/d', 'FLOOR'), PARSE_RELATIVE_DATE('now/d', 'CEIL'))"
                     }
                   ],
                   "disaggregated": false
@@ -211,19 +251,18 @@
               "widgetType": "counter",
               "encodings": {
                 "value": {
-                  "fieldName": "viral_negative_count",
-                  "displayName": "Viral Negative Posts"
+                  "fieldName": "sum(viral_negative_posts)"
                 }
               },
               "frame": {
                 "showTitle": true,
-                "title": "Viral Negative Posts"
+                "title": "Viral Negative Posts (Last 7 Days)"
               }
             }
           },
           "position": {
             "x": 0,
-            "y": 8,
+            "y": 7,
             "width": 12,
             "height": 3
           }
@@ -280,7 +319,7 @@
           },
           "position": {
             "x": 0,
-            "y": 11,
+            "y": 10,
             "width": 12,
             "height": 5
           }
@@ -348,7 +387,7 @@
           },
           "position": {
             "x": 0,
-            "y": 16,
+            "y": 15,
             "width": 12,
             "height": 5
           }
@@ -360,15 +399,15 @@
               {
                 "name": "main_query",
                 "query": {
-                  "datasetName": "b4a8461d",
+                  "datasetName": "bf408d0f",
                   "fields": [
                     {
-                      "name": "daily(event_date)",
-                      "expression": "DATE_TRUNC('DAY', `event_date`)"
+                      "name": "event_date",
+                      "expression": "`event_date`"
                     },
                     {
-                      "name": "net_sentiment_score",
-                      "expression": "(SUM(CASE WHEN `sentiment_bucket` = 'Positive' THEN 1 ELSE 0 END) - SUM(CASE WHEN `sentiment_bucket` = 'Negative' THEN 1 ELSE 0 END)) / COUNT(`*`)"
+                      "name": "avg(net_sentiment_score)",
+                      "expression": "AVG(`net_sentiment_score`)"
                     }
                   ],
                   "disaggregated": false
@@ -380,15 +419,15 @@
               "widgetType": "line",
               "encodings": {
                 "x": {
-                  "fieldName": "daily(event_date)",
+                  "fieldName": "event_date",
                   "displayName": "Date",
                   "scale": {
                     "type": "temporal"
                   }
                 },
                 "y": {
-                  "fieldName": "net_sentiment_score",
-                  "displayName": "Net Sentiment",
+                  "fieldName": "avg(net_sentiment_score)",
+                  "displayName": "AVG Sentiment Score",
                   "scale": {
                     "type": "quantitative"
                   }
@@ -402,7 +441,7 @@
           },
           "position": {
             "x": 0,
-            "y": 21,
+            "y": 20,
             "width": 12,
             "height": 5
           }
@@ -418,11 +457,16 @@
                   "fields": [
                     {
                       "name": "daily(event_date)",
-                      "expression": "DATE_TRUNC('DAY', `event_date`)"
+                      "expression": "DATE_TRUNC(\"DAY\", `event_date`)"
                     },
                     {
-                      "name": "viral_negative_count",
-                      "expression": "SUM(CASE WHEN `sentiment_bucket` = 'Negative' AND `engagement_level` = '4-Viral' THEN 1 ELSE 0 END)"
+                      "name": "count(*)",
+                      "expression": "COUNT(`*`)"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "expression": "`sentiment_bucket` IN ('Negative')"
                     }
                   ],
                   "disaggregated": false
@@ -441,8 +485,8 @@
                   }
                 },
                 "y": {
-                  "fieldName": "viral_negative_count",
-                  "displayName": "Viral Negative Posts",
+                  "fieldName": "count(*)",
+                  "displayName": "Negative Posts",
                   "scale": {
                     "type": "quantitative"
                   }
@@ -450,13 +494,13 @@
               },
               "frame": {
                 "showTitle": true,
-                "title": "Viral Negative Posts Over Time"
+                "title": "Negative Posts Over Time"
               }
             }
           },
           "position": {
             "x": 0,
-            "y": 26,
+            "y": 25,
             "width": 12,
             "height": 5
           }
@@ -524,7 +568,7 @@
           },
           "position": {
             "x": 0,
-            "y": 31,
+            "y": 30,
             "width": 12,
             "height": 6
           }
@@ -592,7 +636,7 @@
           },
           "position": {
             "x": 0,
-            "y": 37,
+            "y": 36,
             "width": 12,
             "height": 6
           }
@@ -646,7 +690,7 @@
           },
           "position": {
             "x": 0,
-            "y": 43,
+            "y": 42,
             "width": 12,
             "height": 5
           }
@@ -656,10 +700,14 @@
             "name": "w_sentiment_by_category_heatmap",
             "queries": [
               {
-                "name": "heatmap_query",
+                "name": "main_query",
                 "query": {
                   "datasetName": "b4a8461d",
                   "fields": [
+                    {
+                      "name": "count(*)",
+                      "expression": "COUNT(`*`)"
+                    },
                     {
                       "name": "issue_category",
                       "expression": "`issue_category`"
@@ -667,10 +715,6 @@
                     {
                       "name": "sentiment_bucket",
                       "expression": "`sentiment_bucket`"
-                    },
-                    {
-                      "name": "count(*)",
-                      "expression": "COUNT(`*`)"
                     }
                   ],
                   "disaggregated": false
@@ -683,21 +727,19 @@
               "encodings": {
                 "x": {
                   "fieldName": "issue_category",
-                  "displayName": "Issue Category",
                   "scale": {
                     "type": "categorical"
                   }
                 },
                 "y": {
                   "fieldName": "sentiment_bucket",
-                  "displayName": "Sentiment",
                   "scale": {
                     "type": "categorical"
                   }
                 },
                 "color": {
                   "fieldName": "count(*)",
-                  "displayName": "Posts",
+                  "displayName": "Count",
                   "scale": {
                     "type": "quantitative"
                   }
@@ -711,7 +753,7 @@
           },
           "position": {
             "x": 0,
-            "y": 48,
+            "y": 47,
             "width": 12,
             "height": 5
           }
@@ -788,7 +830,7 @@
           },
           "position": {
             "x": 0,
-            "y": 53,
+            "y": 52,
             "width": 12,
             "height": 5
           }
@@ -798,33 +840,21 @@
             "name": "w_top_negative_posts_table",
             "queries": [
               {
-                "name": "neg_post_query",
+                "name": "main_query",
                 "query": {
-                  "datasetName": "neg_posts_ds",
+                  "datasetName": "b4a8461d",
                   "fields": [
-                    {
-                      "name": "event_date",
-                      "expression": "`event_date`"
-                    },
                     {
                       "name": "title",
                       "expression": "`title`"
                     },
                     {
-                      "name": "permalink",
-                      "expression": "`permalink`"
+                      "name": "link_flair_text",
+                      "expression": "`link_flair_text`"
                     },
                     {
                       "name": "issue_category",
                       "expression": "`issue_category`"
-                    },
-                    {
-                      "name": "platform_detected",
-                      "expression": "`platform_detected`"
-                    },
-                    {
-                      "name": "engagement_level",
-                      "expression": "`engagement_level`"
                     },
                     {
                       "name": "score",
@@ -833,6 +863,26 @@
                     {
                       "name": "num_comments",
                       "expression": "`num_comments`"
+                    },
+                    {
+                      "name": "engagement_level",
+                      "expression": "`engagement_level`"
+                    },
+                    {
+                      "name": "platform_detected",
+                      "expression": "`platform_detected`"
+                    },
+                    {
+                      "name": "permalink",
+                      "expression": "`permalink`"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "expression": "`sentiment_bucket` IN ('Negative')"
+                    },
+                    {
+                      "expression": "IN_RANGE(`event_date`, PARSE_RELATIVE_DATE('now-7d/d', 'FLOOR'), PARSE_RELATIVE_DATE('now/d', 'CEIL'))"
                     }
                   ],
                   "disaggregated": true
@@ -845,25 +895,23 @@
               "encodings": {
                 "columns": [
                   {
-                    "fieldName": "event_date",
-                    "type": "date",
-                    "displayAs": "datetime",
-                    "visible": true,
-                    "order": 100001,
-                    "title": "event_date",
-                    "allowSearch": false,
-                    "alignContent": "left",
-                    "allowHTML": false,
-                    "highlightLinks": false,
-                    "useMonospaceFont": false,
-                    "preserveWhitespace": false
-                  },
-                  {
                     "fieldName": "title",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
                     "type": "string",
                     "displayAs": "string",
                     "visible": true,
-                    "order": 100002,
+                    "order": 1,
                     "title": "title",
                     "allowSearch": false,
                     "alignContent": "left",
@@ -873,29 +921,49 @@
                     "preserveWhitespace": false
                   },
                   {
-                    "fieldName": "permalink",
+                    "fieldName": "link_flair_text",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
                     "type": "string",
                     "displayAs": "string",
                     "visible": true,
-                    "order": 100003,
-                    "title": "permalink",
+                    "order": 2,
+                    "title": "link_flair_text",
                     "allowSearch": false,
                     "alignContent": "left",
                     "allowHTML": false,
                     "highlightLinks": false,
                     "useMonospaceFont": false,
-                    "preserveWhitespace": false,
-                    "linkUrlTemplate": "{{ @ }}",
-                    "linkTextTemplate": "{{ @ }}",
-                    "linkTitleTemplate": "{{ @ }}",
-                    "linkOpenInNewTab": true
+                    "preserveWhitespace": false
                   },
                   {
                     "fieldName": "issue_category",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
                     "type": "string",
                     "displayAs": "string",
                     "visible": true,
-                    "order": 100004,
+                    "order": 4,
                     "title": "issue_category",
                     "allowSearch": false,
                     "alignContent": "left",
@@ -905,39 +973,24 @@
                     "preserveWhitespace": false
                   },
                   {
-                    "fieldName": "platform_detected",
-                    "type": "string",
-                    "displayAs": "string",
-                    "visible": true,
-                    "order": 100005,
-                    "title": "platform_detected",
-                    "allowSearch": false,
-                    "alignContent": "left",
-                    "allowHTML": false,
-                    "highlightLinks": false,
-                    "useMonospaceFont": false,
-                    "preserveWhitespace": false
-                  },
-                  {
-                    "fieldName": "engagement_level",
-                    "type": "string",
-                    "displayAs": "string",
-                    "visible": true,
-                    "order": 100006,
-                    "title": "engagement_level",
-                    "allowSearch": false,
-                    "alignContent": "left",
-                    "allowHTML": false,
-                    "highlightLinks": false,
-                    "useMonospaceFont": false,
-                    "preserveWhitespace": false
-                  },
-                  {
                     "fieldName": "score",
+                    "numberFormat": "0",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
                     "type": "integer",
                     "displayAs": "number",
                     "visible": true,
-                    "order": 100007,
+                    "order": 8,
                     "title": "score",
                     "allowSearch": false,
                     "alignContent": "right",
@@ -948,10 +1001,23 @@
                   },
                   {
                     "fieldName": "num_comments",
+                    "numberFormat": "0",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
                     "type": "integer",
                     "displayAs": "number",
                     "visible": true,
-                    "order": 100008,
+                    "order": 9,
                     "title": "num_comments",
                     "allowSearch": false,
                     "alignContent": "right",
@@ -959,26 +1025,531 @@
                     "highlightLinks": false,
                     "useMonospaceFont": false,
                     "preserveWhitespace": false
+                  },
+                  {
+                    "fieldName": "engagement_level",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 19,
+                    "title": "engagement_level",
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false
+                  },
+                  {
+                    "fieldName": "platform_detected",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 20,
+                    "title": "platform_detected",
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false
+                  },
+                  {
+                    "fieldName": "permalink",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 21,
+                    "title": "permalink",
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false
                   }
                 ]
               },
+              "invisibleColumns": [
+                {
+                  "booleanValues": [
+                    "false",
+                    "true"
+                  ],
+                  "imageUrlTemplate": "{{ @ }}",
+                  "imageTitleTemplate": "{{ @ }}",
+                  "imageWidth": "",
+                  "imageHeight": "",
+                  "linkUrlTemplate": "{{ @ }}",
+                  "linkTextTemplate": "{{ @ }}",
+                  "linkTitleTemplate": "{{ @ }}",
+                  "linkOpenInNewTab": true,
+                  "name": "id",
+                  "type": "string",
+                  "displayAs": "string",
+                  "order": 0,
+                  "title": "id",
+                  "allowSearch": false,
+                  "alignContent": "left",
+                  "allowHTML": false,
+                  "highlightLinks": false,
+                  "useMonospaceFont": false,
+                  "preserveWhitespace": false
+                },
+                {
+                  "booleanValues": [
+                    "false",
+                    "true"
+                  ],
+                  "imageUrlTemplate": "{{ @ }}",
+                  "imageTitleTemplate": "{{ @ }}",
+                  "imageWidth": "",
+                  "imageHeight": "",
+                  "linkUrlTemplate": "{{ @ }}",
+                  "linkTextTemplate": "{{ @ }}",
+                  "linkTitleTemplate": "{{ @ }}",
+                  "linkOpenInNewTab": true,
+                  "name": "selftext",
+                  "type": "string",
+                  "displayAs": "string",
+                  "order": 3,
+                  "title": "selftext",
+                  "allowSearch": false,
+                  "alignContent": "left",
+                  "allowHTML": false,
+                  "highlightLinks": false,
+                  "useMonospaceFont": false,
+                  "preserveWhitespace": false
+                },
+                {
+                  "booleanValues": [
+                    "false",
+                    "true"
+                  ],
+                  "imageUrlTemplate": "{{ @ }}",
+                  "imageTitleTemplate": "{{ @ }}",
+                  "imageWidth": "",
+                  "imageHeight": "",
+                  "linkUrlTemplate": "{{ @ }}",
+                  "linkTextTemplate": "{{ @ }}",
+                  "linkTitleTemplate": "{{ @ }}",
+                  "linkOpenInNewTab": true,
+                  "name": "author",
+                  "type": "string",
+                  "displayAs": "string",
+                  "order": 5,
+                  "title": "author",
+                  "allowSearch": false,
+                  "alignContent": "left",
+                  "allowHTML": false,
+                  "highlightLinks": false,
+                  "useMonospaceFont": false,
+                  "preserveWhitespace": false
+                },
+                {
+                  "numberFormat": "0",
+                  "booleanValues": [
+                    "false",
+                    "true"
+                  ],
+                  "imageUrlTemplate": "{{ @ }}",
+                  "imageTitleTemplate": "{{ @ }}",
+                  "imageWidth": "",
+                  "imageHeight": "",
+                  "linkUrlTemplate": "{{ @ }}",
+                  "linkTextTemplate": "{{ @ }}",
+                  "linkTitleTemplate": "{{ @ }}",
+                  "linkOpenInNewTab": true,
+                  "name": "ups",
+                  "type": "integer",
+                  "displayAs": "number",
+                  "order": 6,
+                  "title": "ups",
+                  "allowSearch": false,
+                  "alignContent": "right",
+                  "allowHTML": false,
+                  "highlightLinks": false,
+                  "useMonospaceFont": false,
+                  "preserveWhitespace": false
+                },
+                {
+                  "numberFormat": "0",
+                  "booleanValues": [
+                    "false",
+                    "true"
+                  ],
+                  "imageUrlTemplate": "{{ @ }}",
+                  "imageTitleTemplate": "{{ @ }}",
+                  "imageWidth": "",
+                  "imageHeight": "",
+                  "linkUrlTemplate": "{{ @ }}",
+                  "linkTextTemplate": "{{ @ }}",
+                  "linkTitleTemplate": "{{ @ }}",
+                  "linkOpenInNewTab": true,
+                  "name": "downs",
+                  "type": "integer",
+                  "displayAs": "number",
+                  "order": 7,
+                  "title": "downs",
+                  "allowSearch": false,
+                  "alignContent": "right",
+                  "allowHTML": false,
+                  "highlightLinks": false,
+                  "useMonospaceFont": false,
+                  "preserveWhitespace": false
+                },
+                {
+                  "dateTimeFormat": "DD/MM/YYYY HH:mm:ss.SSS",
+                  "booleanValues": [
+                    "false",
+                    "true"
+                  ],
+                  "imageUrlTemplate": "{{ @ }}",
+                  "imageTitleTemplate": "{{ @ }}",
+                  "imageWidth": "",
+                  "imageHeight": "",
+                  "linkUrlTemplate": "{{ @ }}",
+                  "linkTextTemplate": "{{ @ }}",
+                  "linkTitleTemplate": "{{ @ }}",
+                  "linkOpenInNewTab": true,
+                  "name": "created_utc",
+                  "type": "datetime",
+                  "displayAs": "datetime",
+                  "order": 10,
+                  "title": "created_utc",
+                  "allowSearch": false,
+                  "alignContent": "right",
+                  "allowHTML": false,
+                  "highlightLinks": false,
+                  "useMonospaceFont": false,
+                  "preserveWhitespace": false
+                },
+                {
+                  "numberFormat": "0.00",
+                  "booleanValues": [
+                    "false",
+                    "true"
+                  ],
+                  "imageUrlTemplate": "{{ @ }}",
+                  "imageTitleTemplate": "{{ @ }}",
+                  "imageWidth": "",
+                  "imageHeight": "",
+                  "linkUrlTemplate": "{{ @ }}",
+                  "linkTextTemplate": "{{ @ }}",
+                  "linkTitleTemplate": "{{ @ }}",
+                  "linkOpenInNewTab": true,
+                  "name": "upvote_ratio",
+                  "type": "float",
+                  "displayAs": "number",
+                  "order": 11,
+                  "title": "upvote_ratio",
+                  "allowSearch": false,
+                  "alignContent": "right",
+                  "allowHTML": false,
+                  "highlightLinks": false,
+                  "useMonospaceFont": false,
+                  "preserveWhitespace": false
+                },
+                {
+                  "booleanValues": [
+                    "false",
+                    "true"
+                  ],
+                  "imageUrlTemplate": "{{ @ }}",
+                  "imageTitleTemplate": "{{ @ }}",
+                  "imageWidth": "",
+                  "imageHeight": "",
+                  "linkUrlTemplate": "{{ @ }}",
+                  "linkTextTemplate": "{{ @ }}",
+                  "linkTitleTemplate": "{{ @ }}",
+                  "linkOpenInNewTab": true,
+                  "name": "is_self",
+                  "type": "boolean",
+                  "displayAs": "boolean",
+                  "order": 12,
+                  "title": "is_self",
+                  "allowSearch": false,
+                  "alignContent": "right",
+                  "allowHTML": false,
+                  "highlightLinks": false,
+                  "useMonospaceFont": false,
+                  "preserveWhitespace": false
+                },
+                {
+                  "booleanValues": [
+                    "false",
+                    "true"
+                  ],
+                  "imageUrlTemplate": "{{ @ }}",
+                  "imageTitleTemplate": "{{ @ }}",
+                  "imageWidth": "",
+                  "imageHeight": "",
+                  "linkUrlTemplate": "{{ @ }}",
+                  "linkTextTemplate": "{{ @ }}",
+                  "linkTitleTemplate": "{{ @ }}",
+                  "linkOpenInNewTab": true,
+                  "name": "is_video",
+                  "type": "boolean",
+                  "displayAs": "boolean",
+                  "order": 13,
+                  "title": "is_video",
+                  "allowSearch": false,
+                  "alignContent": "right",
+                  "allowHTML": false,
+                  "highlightLinks": false,
+                  "useMonospaceFont": false,
+                  "preserveWhitespace": false
+                },
+                {
+                  "booleanValues": [
+                    "false",
+                    "true"
+                  ],
+                  "imageUrlTemplate": "{{ @ }}",
+                  "imageTitleTemplate": "{{ @ }}",
+                  "imageWidth": "",
+                  "imageHeight": "",
+                  "linkUrlTemplate": "{{ @ }}",
+                  "linkTextTemplate": "{{ @ }}",
+                  "linkTitleTemplate": "{{ @ }}",
+                  "linkOpenInNewTab": true,
+                  "name": "url",
+                  "type": "string",
+                  "displayAs": "string",
+                  "order": 14,
+                  "title": "url",
+                  "allowSearch": false,
+                  "alignContent": "left",
+                  "allowHTML": false,
+                  "highlightLinks": false,
+                  "useMonospaceFont": false,
+                  "preserveWhitespace": false
+                },
+                {
+                  "numberFormat": "0.00",
+                  "booleanValues": [
+                    "false",
+                    "true"
+                  ],
+                  "imageUrlTemplate": "{{ @ }}",
+                  "imageTitleTemplate": "{{ @ }}",
+                  "imageWidth": "",
+                  "imageHeight": "",
+                  "linkUrlTemplate": "{{ @ }}",
+                  "linkTextTemplate": "{{ @ }}",
+                  "linkTitleTemplate": "{{ @ }}",
+                  "linkOpenInNewTab": true,
+                  "name": "sentiment_score",
+                  "type": "float",
+                  "displayAs": "number",
+                  "order": 15,
+                  "title": "sentiment_score",
+                  "allowSearch": false,
+                  "alignContent": "right",
+                  "allowHTML": false,
+                  "highlightLinks": false,
+                  "useMonospaceFont": false,
+                  "preserveWhitespace": false
+                },
+                {
+                  "booleanValues": [
+                    "false",
+                    "true"
+                  ],
+                  "imageUrlTemplate": "{{ @ }}",
+                  "imageTitleTemplate": "{{ @ }}",
+                  "imageWidth": "",
+                  "imageHeight": "",
+                  "linkUrlTemplate": "{{ @ }}",
+                  "linkTextTemplate": "{{ @ }}",
+                  "linkTitleTemplate": "{{ @ }}",
+                  "linkOpenInNewTab": true,
+                  "name": "comments",
+                  "type": "string",
+                  "displayAs": "string",
+                  "order": 16,
+                  "title": "comments",
+                  "allowSearch": false,
+                  "alignContent": "left",
+                  "allowHTML": false,
+                  "highlightLinks": false,
+                  "useMonospaceFont": false,
+                  "preserveWhitespace": false
+                },
+                {
+                  "dateTimeFormat": "DD/MM/YYYY",
+                  "booleanValues": [
+                    "false",
+                    "true"
+                  ],
+                  "imageUrlTemplate": "{{ @ }}",
+                  "imageTitleTemplate": "{{ @ }}",
+                  "imageWidth": "",
+                  "imageHeight": "",
+                  "linkUrlTemplate": "{{ @ }}",
+                  "linkTextTemplate": "{{ @ }}",
+                  "linkTitleTemplate": "{{ @ }}",
+                  "linkOpenInNewTab": true,
+                  "name": "event_date",
+                  "type": "date",
+                  "displayAs": "datetime",
+                  "order": 17,
+                  "title": "event_date",
+                  "allowSearch": false,
+                  "alignContent": "right",
+                  "allowHTML": false,
+                  "highlightLinks": false,
+                  "useMonospaceFont": false,
+                  "preserveWhitespace": false
+                },
+                {
+                  "booleanValues": [
+                    "false",
+                    "true"
+                  ],
+                  "imageUrlTemplate": "{{ @ }}",
+                  "imageTitleTemplate": "{{ @ }}",
+                  "imageWidth": "",
+                  "imageHeight": "",
+                  "linkUrlTemplate": "{{ @ }}",
+                  "linkTextTemplate": "{{ @ }}",
+                  "linkTitleTemplate": "{{ @ }}",
+                  "linkOpenInNewTab": true,
+                  "name": "sentiment_bucket",
+                  "type": "string",
+                  "displayAs": "string",
+                  "order": 18,
+                  "title": "sentiment_bucket",
+                  "allowSearch": false,
+                  "alignContent": "left",
+                  "allowHTML": false,
+                  "highlightLinks": false,
+                  "useMonospaceFont": false,
+                  "preserveWhitespace": false
+                }
+              ],
               "allowHTMLByDefault": false,
-              "itemsPerPage": 10,
+              "itemsPerPage": 25,
               "paginationSize": "default",
               "condensed": true,
               "withRowNumber": false,
-              "firstNFrozenColumns": 2,
               "frame": {
                 "showTitle": true,
-                "title": "Top Negative Posts (by engagement)"
+                "title": "Latest Negative Reddits"
               }
             }
           },
           "position": {
             "x": 0,
-            "y": 58,
+            "y": 57,
             "width": 12,
             "height": 8
+          }
+        },
+        {
+          "widget": {
+            "name": "a2329d2a",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "b4a8461d",
+                  "fields": [
+                    {
+                      "name": "link_flair_text",
+                      "expression": "`link_flair_text`"
+                    },
+                    {
+                      "name": "daily(event_date)",
+                      "expression": "DATE_TRUNC(\"DAY\", `event_date`)"
+                    },
+                    {
+                      "name": "count(*)",
+                      "expression": "COUNT(`*`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "area",
+              "encodings": {
+                "x": {
+                  "fieldName": "daily(event_date)",
+                  "displayName": "Date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "count(*)",
+                  "displayName": "Posts",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "link_flair_text",
+                  "legend": {
+                    "position": "bottom"
+                  },
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "label": {
+                  "show": false
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Posts Per Day Per Link Flare"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 15,
+            "width": 12,
+            "height": 5
           }
         }
       ],
