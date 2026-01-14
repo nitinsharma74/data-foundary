@@ -1,0 +1,6 @@
+resources:
+  dashboards:
+    reddit_dashboard:
+      display_name: "Reddit Sentiment Analysis"
+      file_path: "reddit_analysis.lvdash.json"
+      warehouse_id: "7c12c19f5f977de5"

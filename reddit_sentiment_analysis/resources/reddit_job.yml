@@ -16,6 +16,11 @@ resources:
             parameters:
               - "--table-name"
               - "workspace.default.${bundle.target}_reddit_data"
+        - task_key: refresh_reddit_dashboard
+          depends_on:
+            - task_key: run_reddit_sentiment_analysis
+          dashboard_task:
+            dashboard_id: ${resources.dashboards.reddit_dashboard.id}
 
       environments:
         - environment_key: "reddit_env"

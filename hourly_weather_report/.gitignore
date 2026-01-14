@@ -5,6 +5,7 @@ __pycache__/
 *.egg-info
 .venv/
 .vscode/
+.DS_Store
 scratch/**
 !scratch/README.md
 **/explorations/**
