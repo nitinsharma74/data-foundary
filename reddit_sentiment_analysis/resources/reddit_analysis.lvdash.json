@@ -72,127 +72,6 @@
         "SELECT *\n",
         "FROM enriched_reddit_data;\n"
       ]
-    },
-    {
-      "name": "neg_posts_ds",
-      "displayName": "Top Negative Posts",
-      "queryLines": [
-        "WITH enriched_reddit_data AS (\n",
-        "  SELECT\n",
-        "    *,\n",
-        "    CAST(to_timestamp(created_utc) AS DATE) AS event_date,\n",
-        "    CASE\n",
-        "      WHEN sentiment_score > 0.05 THEN 'Positive'\n",
-        "      WHEN sentiment_score < -0.05 THEN 'Negative'\n",
-        "      ELSE 'Neutral'\n",
-        "    END AS sentiment_bucket,\n",
-        "    CASE\n",
-        "      WHEN (num_comments + score) > 50 THEN '4-Viral'\n",
-        "      WHEN (num_comments + score) > 20 THEN '3-High'\n",
-        "      WHEN (num_comments + score) > 5 THEN '2-Medium'\n",
-        "      ELSE '1-Low'\n",
-        "    END AS engagement_level,\n",
-        "    CASE\n",
-        "            WHEN link_flair_text IN ('Streaming | Technical Issue', 'Technical Issue')\n",
-        "                 OR LOWER(title) LIKE '%bug%'\n",
-        "                 OR LOWER(title) LIKE '%error%'\n",
-        "                 OR LOWER(title) LIKE '%crash%'\n",
-        "                 OR LOWER(title) LIKE '%issue%'\n",
-        "                THEN 'Technical/Product'\n",
-        "            WHEN link_flair_text IN ('Account/Membership', 'Manga', 'Dubs')\n",
-        "                THEN 'Billing/Service'\n",
-        "            WHEN link_flair_text IN ('Simulcast', 'Service Discussion')\n",
-        "                THEN 'Content/Catalog'\n",
-        "            ELSE 'General/Other'\n",
-        "        END AS issue_category,\n",
-        "\n",
-        "        CASE\n",
-        "            WHEN LOWER(title) LIKE '%tv%'\n",
-        "                 OR LOWER(title) LIKE '%roku%'\n",
-        "                 OR LOWER(title) LIKE '%lg%'\n",
-        "                THEN 'Smart TV'\n",
-        "            WHEN LOWER(title) LIKE '%app%'\n",
-        "                 OR LOWER(title) LIKE '%mobile%'\n",
-        "                 OR LOWER(title) LIKE '%android%'\n",
-        "                 OR LOWER(title) LIKE '%iphone%'\n",
-        "                THEN 'Mobile App'\n",
-        "            WHEN LOWER(title) LIKE '%macbook%'\n",
-        "                 OR LOWER(title) LIKE '%browser%'\n",
-        "                 OR LOWER(title) LIKE '%laptop%'\n",
-        "                 OR LOWER(title) LIKE '%pc%'\n",
-        "                 OR LOWER(title) LIKE '%computer%'\n",
-        "                THEN 'Web/Desktop'\n",
-        "            ELSE 'Unknown/General'\n",
-        "        END AS platform_detected\n",
-        "\n",
-        "  FROM prod_reddit_data\n",
-        ")\n",
-        "SELECT\n",
-        "  event_date,\n",
-        "  title,\n",
-        "  permalink,\n",
-        "  issue_category,\n",
-        "  platform_detected,\n",
-        "  engagement_level,\n",
-        "  score,\n",
-        "  num_comments,\n",
-        "  sentiment_bucket,\n",
-        "  (num_comments + score) AS engagement_total\n",
-        "FROM enriched_reddit_data\n",
-        "WHERE sentiment_bucket = 'Negative'\n",
-        "ORDER BY engagement_total DESC"
-      ]
-    },
-    {
-      "name": "bf408d0f",
-      "displayName": "Reddit Daily KPIs",
-      "queryLines": [
-        "WITH enriched_reddit_data AS (\n",
-        "  SELECT\n",
-        "    *,\n",
-        "    CAST(to_timestamp(created_utc) AS DATE) AS event_date,\n",
-        "    CASE\n",
-        "      WHEN sentiment_score > 0.05 THEN 'Positive'\n",
-        "      WHEN sentiment_score < -0.05 THEN 'Negative'\n",
-        "      ELSE 'Neutral'\n",
-        "    END AS sentiment_bucket,\n",
-        "    CASE\n",
-        "      WHEN (num_comments + score) > 50 THEN '4-Viral'\n",
-        "      WHEN (num_comments + score) > 20 THEN '3-High'\n",
-        "      WHEN (num_comments + score) > 5 THEN '2-Medium'\n",
-        "      ELSE '1-Low'\n",
-        "    END AS engagement_level\n",
-        "  FROM prod_reddit_data\n",
-        "),\n",
-        "\n",
-        "daily_kpis AS (\n",
-        "  SELECT\n",
-        "    event_date,\n",
-        "    COUNT(*) AS total_posts,\n",
-        "    SUM(CASE WHEN sentiment_bucket = 'Positive' THEN 1 ELSE 0 END) AS positive_posts,\n",
-        "    SUM(CASE WHEN sentiment_bucket = 'Negative' THEN 1 ELSE 0 END) AS negative_posts,\n",
-        "    SUM(\n",
-        "      CASE\n",
-        "        WHEN sentiment_bucket = 'Negative'\n",
-        "         AND engagement_level = '4-Viral'\n",
-        "        THEN 1\n",
-        "        ELSE 0\n",
-        "      END\n",
-        "    ) AS viral_negative_posts\n",
-        "  FROM enriched_reddit_data\n",
-        "  GROUP BY event_date\n",
-        ")\n",
-        "\n",
-        "SELECT\n",
-        "  event_date,\n",
-        "  total_posts,\n",
-        "  viral_negative_posts,\n",
-        "  COALESCE(\n",
-        "    (positive_posts - negative_posts) * 1.0 / NULLIF(total_posts, 0),\n",
-        "    0.0\n",
-        "  ) AS net_sentiment_score\n",
-        "FROM daily_kpis;\n"
-      ]
     }
   ],
   "pages": [
@@ -230,11 +109,6 @@
                       "expression": "COUNT(`*`)"
                     }
                   ],
-                  "filters": [
-                    {
-                      "expression": "IN_RANGE(`event_date`, PARSE_RELATIVE_DATE('now-30d/d', 'FLOOR'), PARSE_RELATIVE_DATE('now/d', 'CEIL'))"
-                    }
-                  ],
                   "disaggregated": false
                 }
               }
@@ -250,59 +124,15 @@
               },
               "frame": {
                 "showTitle": true,
-                "title": "Total Posts (Last 30 Days)"
+                "title": "Total Posts"
               }
             }
           },
           "position": {
             "x": 0,
             "y": 1,
-            "width": 2,
-            "height": 3
-          }
-        },
-        {
-          "widget": {
-            "name": "w_kpi_net_sentiment_latest",
-            "queries": [
-              {
-                "name": "main_query",
-                "query": {
-                  "datasetName": "b4a8461d",
-                  "fields": [
-                    {
-                      "name": "count(*)",
-                      "expression": "COUNT(`*`)"
-                    }
-                  ],
-                  "filters": [
-                    {
-                      "expression": "IN_RANGE(`event_date`, PARSE_RELATIVE_DATE('now-7d/d', 'FLOOR'), PARSE_RELATIVE_DATE('now/d', 'CEIL'))"
-                    }
-                  ],
-                  "disaggregated": false
-                }
-              }
-            ],
-            "spec": {
-              "version": 2,
-              "widgetType": "counter",
-              "encodings": {
-                "value": {
-                  "fieldName": "count(*)"
-                }
-              },
-              "frame": {
-                "showTitle": true,
-                "title": "Total Posts  ( Last 7 Days)"
-              }
-            }
-          },
-          "position": {
-            "x": 2,
-            "y": 1,
-            "width": 2,
-            "height": 3
+            "width": 3,
+            "height": 4
           }
         },
         {
@@ -321,11 +151,6 @@
                     {
                       "name": "sentiment_bucket",
                       "expression": "`sentiment_bucket`"
-                    }
-                  ],
-                  "filters": [
-                    {
-                      "expression": "IN_RANGE(`event_date`, PARSE_RELATIVE_DATE('now-7d/d', 'FLOOR'), PARSE_RELATIVE_DATE('now/d', 'CEIL'))"
                     }
                   ],
                   "disaggregated": false
@@ -376,15 +201,15 @@
               },
               "frame": {
                 "showTitle": true,
-                "title": "Sentiment Distribution (Last 7 Days)"
+                "title": "Sentiment Distribution"
               }
             }
           },
           "position": {
-            "x": 4,
+            "x": 3,
             "y": 1,
-            "width": 8,
-            "height": 3
+            "width": 9,
+            "height": 4
           }
         },
         {
@@ -439,7 +264,7 @@
           },
           "position": {
             "x": 0,
-            "y": 4,
+            "y": 5,
             "width": 12,
             "height": 5
           }
@@ -516,7 +341,7 @@
           },
           "position": {
             "x": 0,
-            "y": 14,
+            "y": 15,
             "width": 12,
             "height": 5
           }
@@ -619,7 +444,7 @@
           },
           "position": {
             "x": 0,
-            "y": 19,
+            "y": 20,
             "width": 12,
             "height": 5
           }
@@ -687,7 +512,7 @@
           },
           "position": {
             "x": 0,
-            "y": 24,
+            "y": 25,
             "width": 12,
             "height": 6
           }
@@ -755,7 +580,7 @@
           },
           "position": {
             "x": 0,
-            "y": 30,
+            "y": 31,
             "width": 12,
             "height": 5
           }
@@ -822,7 +647,7 @@
           },
           "position": {
             "x": 0,
-            "y": 35,
+            "y": 36,
             "width": 12,
             "height": 5
           }
@@ -889,7 +714,7 @@
           },
           "position": {
             "x": 0,
-            "y": 40,
+            "y": 41,
             "width": 12,
             "height": 5
           }
@@ -975,7 +800,7 @@
           },
           "position": {
             "x": 0,
-            "y": 45,
+            "y": 46,
             "width": 12,
             "height": 5
           }
@@ -1630,7 +1455,7 @@
           },
           "position": {
             "x": 0,
-            "y": 50,
+            "y": 51,
             "width": 12,
             "height": 8
           }
@@ -1700,7 +1525,7 @@
           },
           "position": {
             "x": 0,
-            "y": 9,
+            "y": 10,
             "width": 12,
             "height": 5
           }
@@ -1717,43 +1542,9 @@
             "name": "event-date",
             "queries": [
               {
-                "name": "dashboards/01f0f1cd5fb31ed3b0c3ce157e1c33c8/datasets/01f0f1cd5fb417758304437135e71614_event_date",
+                "name": "dashboards/01f0f2423ca3171682e26242e33d04ea/datasets/01f0f2423ca31a9980f0d7c357eefd44_event_date",
                 "query": {
                   "datasetName": "b4a8461d",
-                  "fields": [
-                    {
-                      "name": "event_date",
-                      "expression": "`event_date`"
-                    },
-                    {
-                      "name": "event_date_associativity",
-                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
-                    }
-                  ],
-                  "disaggregated": false
-                }
-              },
-              {
-                "name": "dashboards/01f0f1cd5fb31ed3b0c3ce157e1c33c8/datasets/01f0f1cd5fb417bd9a3698cf83575ab6_event_date",
-                "query": {
-                  "datasetName": "neg_posts_ds",
-                  "fields": [
-                    {
-                      "name": "event_date",
-                      "expression": "`event_date`"
-                    },
-                    {
-                      "name": "event_date_associativity",
-                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
-                    }
-                  ],
-                  "disaggregated": false
-                }
-              },
-              {
-                "name": "dashboards/01f0f1cd5fb31ed3b0c3ce157e1c33c8/datasets/01f0f1cd5fb417c5bfe63cdd38531214_event_date",
-                "query": {
-                  "datasetName": "bf408d0f",
                   "fields": [
                     {
                       "name": "event_date",
@@ -1775,15 +1566,7 @@
                 "fields": [
                   {
                     "fieldName": "event_date",
-                    "queryName": "dashboards/01f0f1cd5fb31ed3b0c3ce157e1c33c8/datasets/01f0f1cd5fb417758304437135e71614_event_date"
-                  },
-                  {
-                    "fieldName": "event_date",
-                    "queryName": "dashboards/01f0f1cd5fb31ed3b0c3ce157e1c33c8/datasets/01f0f1cd5fb417bd9a3698cf83575ab6_event_date"
-                  },
-                  {
-                    "fieldName": "event_date",
-                    "queryName": "dashboards/01f0f1cd5fb31ed3b0c3ce157e1c33c8/datasets/01f0f1cd5fb417c5bfe63cdd38531214_event_date"
+                    "queryName": "dashboards/01f0f2423ca3171682e26242e33d04ea/datasets/01f0f2423ca31a9980f0d7c357eefd44_event_date"
                   }
                 ]
               },
@@ -1796,6 +1579,144 @@
           "position": {
             "x": 0,
             "y": 0,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "sentiment-bucket",
+            "queries": [
+              {
+                "name": "dashboards/01f0f2423ca3171682e26242e33d04ea/datasets/01f0f2423ca31a9980f0d7c357eefd44_sentiment_bucket",
+                "query": {
+                  "datasetName": "b4a8461d",
+                  "fields": [
+                    {
+                      "name": "sentiment_bucket",
+                      "expression": "`sentiment_bucket`"
+                    },
+                    {
+                      "name": "sentiment_bucket_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "sentiment_bucket",
+                    "queryName": "dashboards/01f0f2423ca3171682e26242e33d04ea/datasets/01f0f2423ca31a9980f0d7c357eefd44_sentiment_bucket"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Sentiment Bucket"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "link-flair",
+            "queries": [
+              {
+                "name": "dashboards/01f0f2423ca3171682e26242e33d04ea/datasets/01f0f2423ca31a9980f0d7c357eefd44_link_flair_text",
+                "query": {
+                  "datasetName": "b4a8461d",
+                  "fields": [
+                    {
+                      "name": "link_flair_text",
+                      "expression": "`link_flair_text`"
+                    },
+                    {
+                      "name": "link_flair_text_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "link_flair_text",
+                    "queryName": "dashboards/01f0f2423ca3171682e26242e33d04ea/datasets/01f0f2423ca31a9980f0d7c357eefd44_link_flair_text"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Link Flair"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 4,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "engagement-level",
+            "queries": [
+              {
+                "name": "dashboards/01f0f2423ca3171682e26242e33d04ea/datasets/01f0f2423ca31a9980f0d7c357eefd44_engagement_level",
+                "query": {
+                  "datasetName": "b4a8461d",
+                  "fields": [
+                    {
+                      "name": "engagement_level",
+                      "expression": "`engagement_level`"
+                    },
+                    {
+                      "name": "engagement_level_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "engagement_level",
+                    "queryName": "dashboards/01f0f2423ca3171682e26242e33d04ea/datasets/01f0f2423ca31a9980f0d7c357eefd44_engagement_level"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Engagement Level"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 6,
             "width": 1,
             "height": 2
           }
