@@ -1612,40 +1612,6 @@
                   "disaggregated": false
                 }
               },
-              {
-                "name": "dashboards/01f0f1cd5fb31ed3b0c3ce157e1c33c8/datasets/01f0f1cd5fb417bd9a3698cf83575ab6_event_date",
-                "query": {
-                  "datasetName": "neg_posts_ds",
-                  "fields": [
-                    {
-                      "name": "event_date",
-                      "expression": "`event_date`"
-                    },
-                    {
-                      "name": "event_date_associativity",
-                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
-                    }
-                  ],
-                  "disaggregated": false
-                }
-              },
-              {
-                "name": "dashboards/01f0f1cd5fb31ed3b0c3ce157e1c33c8/datasets/01f0f1cd5fb417c5bfe63cdd38531214_event_date",
-                "query": {
-                  "datasetName": "bf408d0f",
-                  "fields": [
-                    {
-                      "name": "event_date",
-                      "expression": "`event_date`"
-                    },
-                    {
-                      "name": "event_date_associativity",
-                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
-                    }
-                  ],
-                  "disaggregated": false
-                }
-              }
             ],
             "spec": {
               "version": 2,
