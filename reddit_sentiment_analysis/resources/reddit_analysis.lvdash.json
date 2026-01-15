@@ -1749,6 +1749,90 @@
             "width": 1,
             "height": 2
           }
+        },
+        {
+          "widget": {
+            "name": "title",
+            "queries": [
+              {
+                "name": "dashboards/01f0f24371e61159a1a8a7342e6b0f35/datasets/01f0f24371e614d8bc6b9a1cc84709c6_title",
+                "query": {
+                  "datasetName": "b4a8461d",
+                  "fields": [
+                    {
+                      "name": "title",
+                      "expression": "`title`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-text-entry",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "title",
+                    "queryName": "dashboards/01f0f24371e61159a1a8a7342e6b0f35/datasets/01f0f24371e614d8bc6b9a1cc84709c6_title"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Title"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 8,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "self-text",
+            "queries": [
+              {
+                "name": "dashboards/01f0f24371e61159a1a8a7342e6b0f35/datasets/01f0f24371e614d8bc6b9a1cc84709c6_selftext",
+                "query": {
+                  "datasetName": "b4a8461d",
+                  "fields": [
+                    {
+                      "name": "selftext",
+                      "expression": "`selftext`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-text-entry",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "selftext",
+                    "queryName": "dashboards/01f0f24371e61159a1a8a7342e6b0f35/datasets/01f0f24371e614d8bc6b9a1cc84709c6_selftext"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Self Text"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 10,
+            "width": 1,
+            "height": 2
+          }
         }
       ],
       "pageType": "PAGE_TYPE_GLOBAL_FILTERS"
