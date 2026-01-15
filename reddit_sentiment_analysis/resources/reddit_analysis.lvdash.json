@@ -344,7 +344,7 @@
                   "fields": [
                     {
                       "name": "daily(event_date)",
-                      "expression": "DATE_TRUNC('DAY', `event_date`)"
+                      "expression": "DATE_TRUNC(\"DAY\", `event_date`)"
                     },
                     {
                       "name": "count(*)",
@@ -654,7 +654,7 @@
                     },
                     {
                       "name": "daily(event_date)",
-                      "expression": "DATE_TRUNC('DAY', `event_date`)"
+                      "expression": "DATE_TRUNC(\"DAY\", `event_date`)"
                     },
                     {
                       "name": "count(*)",
@@ -667,7 +667,7 @@
             ],
             "spec": {
               "version": 3,
-              "widgetType": "line",
+              "widgetType": "area",
               "encodings": {
                 "x": {
                   "fieldName": "daily(event_date)",
@@ -704,7 +704,7 @@
             "x": 0,
             "y": 35,
             "width": 12,
-            "height": 6
+            "height": 5
           }
         },
         {
@@ -721,6 +721,10 @@
                       "expression": "`engagement_level`"
                     },
                     {
+                      "name": "event_date",
+                      "expression": "`event_date`"
+                    },
+                    {
                       "name": "count(*)",
                       "expression": "COUNT(`*`)"
                     }
@@ -731,13 +735,13 @@
             ],
             "spec": {
               "version": 3,
-              "widgetType": "bar",
+              "widgetType": "area",
               "encodings": {
                 "x": {
-                  "fieldName": "engagement_level",
-                  "displayName": "Engagement Level",
+                  "fieldName": "event_date",
+                  "displayName": "Date",
                   "scale": {
-                    "type": "categorical"
+                    "type": "temporal"
                   }
                 },
                 "y": {
@@ -745,6 +749,15 @@
                   "displayName": "Posts",
                   "scale": {
                     "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "engagement_level",
+                  "legend": {
+                    "position": "bottom"
+                  },
+                  "scale": {
+                    "type": "categorical"
                   }
                 }
               },
@@ -756,7 +769,7 @@
           },
           "position": {
             "x": 0,
-            "y": 41,
+            "y": 40,
             "width": 12,
             "height": 5
           }
@@ -819,7 +832,7 @@
           },
           "position": {
             "x": 0,
-            "y": 46,
+            "y": 45,
             "width": 12,
             "height": 5
           }
@@ -896,7 +909,7 @@
           },
           "position": {
             "x": 0,
-            "y": 51,
+            "y": 50,
             "width": 12,
             "height": 5
           }
@@ -915,40 +928,20 @@
                       "expression": "`title`"
                     },
                     {
-                      "name": "link_flair_text",
-                      "expression": "`link_flair_text`"
+                      "name": "selftext",
+                      "expression": "`selftext`"
                     },
                     {
-                      "name": "issue_category",
-                      "expression": "`issue_category`"
+                      "name": "link_flair_text",
+                      "expression": "`link_flair_text`"
                     },
                     {
                       "name": "score",
                       "expression": "`score`"
                     },
                     {
-                      "name": "num_comments",
-                      "expression": "`num_comments`"
-                    },
-                    {
-                      "name": "engagement_level",
-                      "expression": "`engagement_level`"
-                    },
-                    {
-                      "name": "platform_detected",
-                      "expression": "`platform_detected`"
-                    },
-                    {
-                      "name": "permalink",
-                      "expression": "`permalink`"
-                    }
-                  ],
-                  "filters": [
-                    {
-                      "expression": "`sentiment_bucket` IN ('Negative')"
-                    },
-                    {
-                      "expression": "IN_RANGE(`event_date`, PARSE_RELATIVE_DATE('now-7d/d', 'FLOOR'), PARSE_RELATIVE_DATE('now/d', 'CEIL'))"
+                      "name": "sentiment_bucket",
+                      "expression": "`sentiment_bucket`"
                     }
                   ],
                   "disaggregated": true
@@ -987,7 +980,7 @@
                     "preserveWhitespace": false
                   },
                   {
-                    "fieldName": "link_flair_text",
+                    "fieldName": "selftext",
                     "booleanValues": [
                       "false",
                       "true"
@@ -1004,7 +997,7 @@
                     "displayAs": "string",
                     "visible": true,
                     "order": 2,
-                    "title": "link_flair_text",
+                    "title": "selftext",
                     "allowSearch": false,
                     "alignContent": "left",
                     "allowHTML": false,
@@ -1013,7 +1006,7 @@
                     "preserveWhitespace": false
                   },
                   {
-                    "fieldName": "issue_category",
+                    "fieldName": "link_flair_text",
                     "booleanValues": [
                       "false",
                       "true"
@@ -1030,7 +1023,7 @@
                     "displayAs": "string",
                     "visible": true,
                     "order": 4,
-                    "title": "issue_category",
+                    "title": "link_flair_text",
                     "allowSearch": false,
                     "alignContent": "left",
                     "allowHTML": false,
@@ -1066,34 +1059,7 @@
                     "preserveWhitespace": false
                   },
                   {
-                    "fieldName": "num_comments",
-                    "numberFormat": "0",
-                    "booleanValues": [
-                      "false",
-                      "true"
-                    ],
-                    "imageUrlTemplate": "{{ @ }}",
-                    "imageTitleTemplate": "{{ @ }}",
-                    "imageWidth": "",
-                    "imageHeight": "",
-                    "linkUrlTemplate": "{{ @ }}",
-                    "linkTextTemplate": "{{ @ }}",
-                    "linkTitleTemplate": "{{ @ }}",
-                    "linkOpenInNewTab": true,
-                    "type": "integer",
-                    "displayAs": "number",
-                    "visible": true,
-                    "order": 9,
-                    "title": "num_comments",
-                    "allowSearch": false,
-                    "alignContent": "right",
-                    "allowHTML": false,
-                    "highlightLinks": false,
-                    "useMonospaceFont": false,
-                    "preserveWhitespace": false
-                  },
-                  {
-                    "fieldName": "engagement_level",
+                    "fieldName": "sentiment_bucket",
                     "booleanValues": [
                       "false",
                       "true"
@@ -1109,60 +1075,8 @@
                     "type": "string",
                     "displayAs": "string",
                     "visible": true,
-                    "order": 19,
-                    "title": "engagement_level",
-                    "allowSearch": false,
-                    "alignContent": "left",
-                    "allowHTML": false,
-                    "highlightLinks": false,
-                    "useMonospaceFont": false,
-                    "preserveWhitespace": false
-                  },
-                  {
-                    "fieldName": "platform_detected",
-                    "booleanValues": [
-                      "false",
-                      "true"
-                    ],
-                    "imageUrlTemplate": "{{ @ }}",
-                    "imageTitleTemplate": "{{ @ }}",
-                    "imageWidth": "",
-                    "imageHeight": "",
-                    "linkUrlTemplate": "{{ @ }}",
-                    "linkTextTemplate": "{{ @ }}",
-                    "linkTitleTemplate": "{{ @ }}",
-                    "linkOpenInNewTab": true,
-                    "type": "string",
-                    "displayAs": "string",
-                    "visible": true,
-                    "order": 20,
-                    "title": "platform_detected",
-                    "allowSearch": false,
-                    "alignContent": "left",
-                    "allowHTML": false,
-                    "highlightLinks": false,
-                    "useMonospaceFont": false,
-                    "preserveWhitespace": false
-                  },
-                  {
-                    "fieldName": "permalink",
-                    "booleanValues": [
-                      "false",
-                      "true"
-                    ],
-                    "imageUrlTemplate": "{{ @ }}",
-                    "imageTitleTemplate": "{{ @ }}",
-                    "imageWidth": "",
-                    "imageHeight": "",
-                    "linkUrlTemplate": "{{ @ }}",
-                    "linkTextTemplate": "{{ @ }}",
-                    "linkTitleTemplate": "{{ @ }}",
-                    "linkOpenInNewTab": true,
-                    "type": "string",
-                    "displayAs": "string",
-                    "visible": true,
-                    "order": 21,
-                    "title": "permalink",
+                    "order": 18,
+                    "title": "sentiment_bucket",
                     "allowSearch": false,
                     "alignContent": "left",
                     "allowHTML": false,
@@ -1211,11 +1125,11 @@
                   "linkTextTemplate": "{{ @ }}",
                   "linkTitleTemplate": "{{ @ }}",
                   "linkOpenInNewTab": true,
-                  "name": "selftext",
+                  "name": "issue_category",
                   "type": "string",
                   "displayAs": "string",
                   "order": 3,
-                  "title": "selftext",
+                  "title": "issue_category",
                   "allowSearch": false,
                   "alignContent": "left",
                   "allowHTML": false,
@@ -1293,6 +1207,32 @@
                   "displayAs": "number",
                   "order": 7,
                   "title": "downs",
+                  "allowSearch": false,
+                  "alignContent": "right",
+                  "allowHTML": false,
+                  "highlightLinks": false,
+                  "useMonospaceFont": false,
+                  "preserveWhitespace": false
+                },
+                {
+                  "numberFormat": "0",
+                  "booleanValues": [
+                    "false",
+                    "true"
+                  ],
+                  "imageUrlTemplate": "{{ @ }}",
+                  "imageTitleTemplate": "{{ @ }}",
+                  "imageWidth": "",
+                  "imageHeight": "",
+                  "linkUrlTemplate": "{{ @ }}",
+                  "linkTextTemplate": "{{ @ }}",
+                  "linkTitleTemplate": "{{ @ }}",
+                  "linkOpenInNewTab": true,
+                  "name": "num_comments",
+                  "type": "integer",
+                  "displayAs": "number",
+                  "order": 9,
+                  "title": "num_comments",
                   "allowSearch": false,
                   "alignContent": "right",
                   "allowHTML": false,
@@ -1517,11 +1457,61 @@
                   "linkTextTemplate": "{{ @ }}",
                   "linkTitleTemplate": "{{ @ }}",
                   "linkOpenInNewTab": true,
-                  "name": "sentiment_bucket",
+                  "name": "engagement_level",
                   "type": "string",
                   "displayAs": "string",
-                  "order": 18,
-                  "title": "sentiment_bucket",
+                  "order": 19,
+                  "title": "engagement_level",
+                  "allowSearch": false,
+                  "alignContent": "left",
+                  "allowHTML": false,
+                  "highlightLinks": false,
+                  "useMonospaceFont": false,
+                  "preserveWhitespace": false
+                },
+                {
+                  "booleanValues": [
+                    "false",
+                    "true"
+                  ],
+                  "imageUrlTemplate": "{{ @ }}",
+                  "imageTitleTemplate": "{{ @ }}",
+                  "imageWidth": "",
+                  "imageHeight": "",
+                  "linkUrlTemplate": "{{ @ }}",
+                  "linkTextTemplate": "{{ @ }}",
+                  "linkTitleTemplate": "{{ @ }}",
+                  "linkOpenInNewTab": true,
+                  "name": "platform_detected",
+                  "type": "string",
+                  "displayAs": "string",
+                  "order": 20,
+                  "title": "platform_detected",
+                  "allowSearch": false,
+                  "alignContent": "left",
+                  "allowHTML": false,
+                  "highlightLinks": false,
+                  "useMonospaceFont": false,
+                  "preserveWhitespace": false
+                },
+                {
+                  "booleanValues": [
+                    "false",
+                    "true"
+                  ],
+                  "imageUrlTemplate": "{{ @ }}",
+                  "imageTitleTemplate": "{{ @ }}",
+                  "imageWidth": "",
+                  "imageHeight": "",
+                  "linkUrlTemplate": "{{ @ }}",
+                  "linkTextTemplate": "{{ @ }}",
+                  "linkTitleTemplate": "{{ @ }}",
+                  "linkOpenInNewTab": true,
+                  "name": "permalink",
+                  "type": "string",
+                  "displayAs": "string",
+                  "order": 21,
+                  "title": "permalink",
                   "allowSearch": false,
                   "alignContent": "left",
                   "allowHTML": false,
@@ -1531,21 +1521,22 @@
                 }
               ],
               "allowHTMLByDefault": false,
-              "itemsPerPage": 25,
+              "itemsPerPage": 15,
               "paginationSize": "default",
               "condensed": true,
               "withRowNumber": false,
+              "firstNFrozenColumns": 1,
               "frame": {
                 "showTitle": true,
-                "title": "Latest Negative Reddits"
+                "title": "Reddit Threads"
               }
             }
           },
           "position": {
             "x": 0,
-            "y": 56,
+            "y": 55,
             "width": 12,
-            "height": 8
+            "height": 10
           }
         },
         {
@@ -1620,6 +1611,101 @@
         }
       ],
       "pageType": "PAGE_TYPE_CANVAS"
+    },
+    {
+      "name": "14676142",
+      "displayName": "Global Filters",
+      "layout": [
+        {
+          "widget": {
+            "name": "event-date",
+            "queries": [
+              {
+                "name": "dashboards/01f0f1cd5fb31ed3b0c3ce157e1c33c8/datasets/01f0f1cd5fb417758304437135e71614_event_date",
+                "query": {
+                  "datasetName": "b4a8461d",
+                  "fields": [
+                    {
+                      "name": "event_date",
+                      "expression": "`event_date`"
+                    },
+                    {
+                      "name": "event_date_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f0f1cd5fb31ed3b0c3ce157e1c33c8/datasets/01f0f1cd5fb417bd9a3698cf83575ab6_event_date",
+                "query": {
+                  "datasetName": "neg_posts_ds",
+                  "fields": [
+                    {
+                      "name": "event_date",
+                      "expression": "`event_date`"
+                    },
+                    {
+                      "name": "event_date_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f0f1cd5fb31ed3b0c3ce157e1c33c8/datasets/01f0f1cd5fb417c5bfe63cdd38531214_event_date",
+                "query": {
+                  "datasetName": "bf408d0f",
+                  "fields": [
+                    {
+                      "name": "event_date",
+                      "expression": "`event_date`"
+                    },
+                    {
+                      "name": "event_date_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-date-range-picker",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "event_date",
+                    "queryName": "dashboards/01f0f1cd5fb31ed3b0c3ce157e1c33c8/datasets/01f0f1cd5fb417758304437135e71614_event_date"
+                  },
+                  {
+                    "fieldName": "event_date",
+                    "queryName": "dashboards/01f0f1cd5fb31ed3b0c3ce157e1c33c8/datasets/01f0f1cd5fb417bd9a3698cf83575ab6_event_date"
+                  },
+                  {
+                    "fieldName": "event_date",
+                    "queryName": "dashboards/01f0f1cd5fb31ed3b0c3ce157e1c33c8/datasets/01f0f1cd5fb417c5bfe63cdd38531214_event_date"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Event Date"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 1,
+            "height": 2
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_GLOBAL_FILTERS"
     }
   ],
   "uiSettings": {
