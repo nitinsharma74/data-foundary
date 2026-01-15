@@ -72,6 +72,127 @@
         "SELECT *\n",
         "FROM enriched_reddit_data;\n"
       ]
+    },
+    {
+      "name": "neg_posts_ds",
+      "displayName": "Top Negative Posts",
+      "queryLines": [
+        "WITH enriched_reddit_data AS (\n",
+        "  SELECT\n",
+        "    *,\n",
+        "    CAST(to_timestamp(created_utc) AS DATE) AS event_date,\n",
+        "    CASE\n",
+        "      WHEN sentiment_score > 0.05 THEN 'Positive'\n",
+        "      WHEN sentiment_score < -0.05 THEN 'Negative'\n",
+        "      ELSE 'Neutral'\n",
+        "    END AS sentiment_bucket,\n",
+        "    CASE\n",
+        "      WHEN (num_comments + score) > 50 THEN '4-Viral'\n",
+        "      WHEN (num_comments + score) > 20 THEN '3-High'\n",
+        "      WHEN (num_comments + score) > 5 THEN '2-Medium'\n",
+        "      ELSE '1-Low'\n",
+        "    END AS engagement_level,\n",
+        "    CASE\n",
+        "            WHEN link_flair_text IN ('Streaming | Technical Issue', 'Technical Issue')\n",
+        "                 OR LOWER(title) LIKE '%bug%'\n",
+        "                 OR LOWER(title) LIKE '%error%'\n",
+        "                 OR LOWER(title) LIKE '%crash%'\n",
+        "                 OR LOWER(title) LIKE '%issue%'\n",
+        "                THEN 'Technical/Product'\n",
+        "            WHEN link_flair_text IN ('Account/Membership', 'Manga', 'Dubs')\n",
+        "                THEN 'Billing/Service'\n",
+        "            WHEN link_flair_text IN ('Simulcast', 'Service Discussion')\n",
+        "                THEN 'Content/Catalog'\n",
+        "            ELSE 'General/Other'\n",
+        "        END AS issue_category,\n",
+        "\n",
+        "        CASE\n",
+        "            WHEN LOWER(title) LIKE '%tv%'\n",
+        "                 OR LOWER(title) LIKE '%roku%'\n",
+        "                 OR LOWER(title) LIKE '%lg%'\n",
+        "                THEN 'Smart TV'\n",
+        "            WHEN LOWER(title) LIKE '%app%'\n",
+        "                 OR LOWER(title) LIKE '%mobile%'\n",
+        "                 OR LOWER(title) LIKE '%android%'\n",
+        "                 OR LOWER(title) LIKE '%iphone%'\n",
+        "                THEN 'Mobile App'\n",
+        "            WHEN LOWER(title) LIKE '%macbook%'\n",
+        "                 OR LOWER(title) LIKE '%browser%'\n",
+        "                 OR LOWER(title) LIKE '%laptop%'\n",
+        "                 OR LOWER(title) LIKE '%pc%'\n",
+        "                 OR LOWER(title) LIKE '%computer%'\n",
+        "                THEN 'Web/Desktop'\n",
+        "            ELSE 'Unknown/General'\n",
+        "        END AS platform_detected\n",
+        "\n",
+        "  FROM prod_reddit_data\n",
+        ")\n",
+        "SELECT\n",
+        "  event_date,\n",
+        "  title,\n",
+        "  permalink,\n",
+        "  issue_category,\n",
+        "  platform_detected,\n",
+        "  engagement_level,\n",
+        "  score,\n",
+        "  num_comments,\n",
+        "  sentiment_bucket,\n",
+        "  (num_comments + score) AS engagement_total\n",
+        "FROM enriched_reddit_data\n",
+        "WHERE sentiment_bucket = 'Negative'\n",
+        "ORDER BY engagement_total DESC"
+      ]
+    },
+    {
+      "name": "bf408d0f",
+      "displayName": "Reddit Daily KPIs",
+      "queryLines": [
+        "WITH enriched_reddit_data AS (\n",
+        "  SELECT\n",
+        "    *,\n",
+        "    CAST(to_timestamp(created_utc) AS DATE) AS event_date,\n",
+        "    CASE\n",
+        "      WHEN sentiment_score > 0.05 THEN 'Positive'\n",
+        "      WHEN sentiment_score < -0.05 THEN 'Negative'\n",
+        "      ELSE 'Neutral'\n",
+        "    END AS sentiment_bucket,\n",
+        "    CASE\n",
+        "      WHEN (num_comments + score) > 50 THEN '4-Viral'\n",
+        "      WHEN (num_comments + score) > 20 THEN '3-High'\n",
+        "      WHEN (num_comments + score) > 5 THEN '2-Medium'\n",
+        "      ELSE '1-Low'\n",
+        "    END AS engagement_level\n",
+        "  FROM prod_reddit_data\n",
+        "),\n",
+        "\n",
+        "daily_kpis AS (\n",
+        "  SELECT\n",
+        "    event_date,\n",
+        "    COUNT(*) AS total_posts,\n",
+        "    SUM(CASE WHEN sentiment_bucket = 'Positive' THEN 1 ELSE 0 END) AS positive_posts,\n",
+        "    SUM(CASE WHEN sentiment_bucket = 'Negative' THEN 1 ELSE 0 END) AS negative_posts,\n",
+        "    SUM(\n",
+        "      CASE\n",
+        "        WHEN sentiment_bucket = 'Negative'\n",
+        "         AND engagement_level = '4-Viral'\n",
+        "        THEN 1\n",
+        "        ELSE 0\n",
+        "      END\n",
+        "    ) AS viral_negative_posts\n",
+        "  FROM enriched_reddit_data\n",
+        "  GROUP BY event_date\n",
+        ")\n",
+        "\n",
+        "SELECT\n",
+        "  event_date,\n",
+        "  total_posts,\n",
+        "  viral_negative_posts,\n",
+        "  COALESCE(\n",
+        "    (positive_posts - negative_posts) * 1.0 / NULLIF(total_posts, 0),\n",
+        "    0.0\n",
+        "  ) AS net_sentiment_score\n",
+        "FROM daily_kpis;\n"
+      ]
     }
   ],
   "pages": [
@@ -1612,6 +1733,40 @@
                   "disaggregated": false
                 }
               },
+              {
+                "name": "dashboards/01f0f1cd5fb31ed3b0c3ce157e1c33c8/datasets/01f0f1cd5fb417bd9a3698cf83575ab6_event_date",
+                "query": {
+                  "datasetName": "neg_posts_ds",
+                  "fields": [
+                    {
+                      "name": "event_date",
+                      "expression": "`event_date`"
+                    },
+                    {
+                      "name": "event_date_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f0f1cd5fb31ed3b0c3ce157e1c33c8/datasets/01f0f1cd5fb417c5bfe63cdd38531214_event_date",
+                "query": {
+                  "datasetName": "bf408d0f",
+                  "fields": [
+                    {
+                      "name": "event_date",
+                      "expression": "`event_date`"
+                    },
+                    {
+                      "name": "event_date_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
             ],
             "spec": {
               "version": 2,
