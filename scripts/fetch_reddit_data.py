@@ -2,7 +2,7 @@ import requests
 import csv
 import time
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 # ================= CONFIG =================
@@ -10,23 +10,27 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 SUBREDDIT = "crunchyroll"
 POSTS_URL = f"https://www.reddit.com/r/{SUBREDDIT}/new.json"
 
-DAYS_BACK = 60
+DAYS_BACK = 60  # Number of days to look back for posts
 
 OUTPUT_FILE = f"reddit_sentiment_analysis/fixtures/reddit_crunchyroll_{DAYS_BACK}days.csv"
 
-REQUEST_DELAY = 6  # One request every 6 seconds
+REQUEST_DELAY = 3  # One request every 6 seconds to avoid rate limiting
 
 # ========================================
 
-cutoff = (datetime.utcnow() - timedelta(days=DAYS_BACK)).timestamp()
+cutoff = (datetime.now(timezone.utc) - timedelta(days=DAYS_BACK)).timestamp()
 
 
 # ================= SAFE REQUEST =================
 
 def reddit_get(url, params=None):
+    """Safely make a GET request to Reddit with rate limiting and error handling.
+    
+    Retries on 429 (rate limit) and other request exceptions.
+    """
     while True:
         try:
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             seconds_passed = now.hour * 3600 + now.minute * 60 + now.second
 
             headers = {
@@ -58,6 +62,14 @@ def reddit_get(url, params=None):
 # ================= POSTS =================
 
 def fetch_posts(after=None):
+    """Fetch a batch of posts from the subreddit.
+    
+    Args:
+        after: Pagination token for fetching next batch
+    
+    Returns:
+        JSON response containing posts
+    """
     params = {"limit": 100}
     if after:
         params["after"] = after
@@ -67,6 +79,14 @@ def fetch_posts(after=None):
 
 
 def extract_recent_posts(data):
+    """Filter posts to only include those within the DAYS_BACK cutoff.
+    
+    Args:
+        data: JSON response from Reddit API
+    
+    Returns:
+        List of posts created after the cutoff timestamp
+    """
     posts = []
     for child in data["data"]["children"]:
         post = child["data"]
@@ -78,10 +98,18 @@ def extract_recent_posts(data):
 # ================= COMMENTS =================
 
 def fetch_top_comments(permalink):
+    """Fetch top 200 comments for a post, including nested replies.
+    
+    Args:
+        permalink: Post permalink path (e.g., /r/subreddit/comments/id/title/)
+    
+    Returns:
+        List of parsed comment dictionaries with nested replies
+    """
     url = f"https://www.reddit.com{permalink}.json"
     params = {
         "sort": "top",
-        "limit": 10
+        "limit": 200
     }
 
     resp = reddit_get(url, params=params)
@@ -100,6 +128,14 @@ def fetch_top_comments(permalink):
 
 
 def parse_comments(children):
+    """Recursively parse comment objects from Reddit API response.
+    
+    Args:
+        children: List of comment objects from Reddit API
+    
+    Returns:
+        List of comment dictionaries with id, author, body, score, timestamp, and nested replies
+    """
     results = []
 
     for child in children:
@@ -112,8 +148,8 @@ def parse_comments(children):
             "author": d.get("author"),
             "body": d.get("body"),
             "score": d.get("score"),
-            "created_utc": datetime.utcfromtimestamp(
-                d.get("created_utc", 0)
+            "created_utc": datetime.fromtimestamp(
+                d.get("created_utc", 0), timezone.utc
             ).isoformat() if d.get("created_utc") else None,
             "replies": []
         }
@@ -129,9 +165,33 @@ def parse_comments(children):
     return results
 
 
+def add_sentiment_to_comments(comments, analyzer):
+    """Recursively add individual VADER sentiment scores to each comment.
+    
+    Args:
+        comments: List of comment dictionaries
+        analyzer: SentimentIntensityAnalyzer instance
+    
+    Modifies comments in-place by adding 'sentiment' field with compound score (-1.0 to 1.0)
+    """
+    for comment in comments:
+        if comment.get("body"):
+            score = analyzer.polarity_scores(comment["body"])["compound"]
+            comment["sentiment"] = round(score, 4)
+        
+        if comment.get("replies"):
+            add_sentiment_to_comments(comment["replies"], analyzer)
+
+
 # ================= SENTIMENT =================
 
 def collect_texts(comments, texts):
+    """Recursively collect all comment text bodies into a list.
+    
+    Args:
+        comments: List of comment dictionaries
+        texts: List to append comment bodies to (modified in-place)
+    """
     for c in comments:
         if c.get("body"):
             texts.append(c["body"])
@@ -140,6 +200,15 @@ def collect_texts(comments, texts):
 
 
 def sentiment_score(texts, analyzer):
+    """Calculate average sentiment score across multiple texts.
+    
+    Args:
+        texts: List of text strings to analyze
+        analyzer: SentimentIntensityAnalyzer instance
+    
+    Returns:
+        Average compound sentiment score across all texts (0.0 if empty)
+    """
     if not texts:
         return 0.0
 
@@ -183,12 +252,20 @@ def main():
     for i, post in enumerate(all_posts, 1):
         print(f"\nPost {i}/{len(all_posts)}: {post.get('title')}")
 
+        # Start with post title and selftext for overall sentiment
         texts = [post.get("title", ""), post.get("selftext", "")]
 
+        # Fetch top 200 comments with nested replies
         comments = fetch_top_comments(post["permalink"])
+        
+        # Add individual sentiment score to each comment
+        add_sentiment_to_comments(comments, sia)
+        
+        # Collect all comment text for overall sentiment calculation
         collect_texts(comments, texts)
 
         post["comments"] = comments
+        # Overall sentiment: average of post content + all comments
         post["sentiment_score"] = round(sentiment_score(texts, sia), 4)
 
     print("=== Writing CSV ===")
@@ -213,8 +290,8 @@ def main():
                 "downs": p.get("downs"),
                 "score": p.get("score"),
                 "num_comments": p.get("num_comments"),
-                "created_utc": datetime.utcfromtimestamp(
-                    p.get("created_utc", 0)
+                "created_utc": datetime.fromtimestamp(
+                    p.get("created_utc", 0), timezone.utc
                 ).isoformat(),
                 "upvote_ratio": p.get("upvote_ratio"),
                 "link_flair_text": p.get("link_flair_text"),
