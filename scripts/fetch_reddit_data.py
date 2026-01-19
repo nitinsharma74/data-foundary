@@ -12,7 +12,7 @@ from langchain_core.prompts import PromptTemplate
 SUBREDDIT = "crunchyroll"
 POSTS_URL = f"https://www.reddit.com/r/{SUBREDDIT}/new.json"
 
-DAYS_BACK = 1  # Number of days to look back for posts
+DAYS_BACK = 60  # Number of days to look back for posts
 
 OUTPUT_FILE = f"reddit_sentiment_analysis/fixtures/reddit_crunchyroll_{DAYS_BACK}days.csv"
 
