@@ -4,13 +4,15 @@ import time
 import json
 from datetime import datetime, timedelta, timezone
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+from langchain_ollama import ChatOllama
+from langchain_core.prompts import PromptTemplate
 
 # ================= CONFIG =================
 
 SUBREDDIT = "crunchyroll"
 POSTS_URL = f"https://www.reddit.com/r/{SUBREDDIT}/new.json"
 
-DAYS_BACK = 60  # Number of days to look back for posts
+DAYS_BACK = 1  # Number of days to look back for posts
 
 OUTPUT_FILE = f"reddit_sentiment_analysis/fixtures/reddit_crunchyroll_{DAYS_BACK}days.csv"
 
@@ -185,20 +187,6 @@ def add_sentiment_to_comments(comments, analyzer):
 
 # ================= SENTIMENT =================
 
-def collect_texts(comments, texts):
-    """Recursively collect all comment text bodies into a list.
-    
-    Args:
-        comments: List of comment dictionaries
-        texts: List to append comment bodies to (modified in-place)
-    """
-    for c in comments:
-        if c.get("body"):
-            texts.append(c["body"])
-        if c.get("replies"):
-            collect_texts(c["replies"], texts)
-
-
 def sentiment_score(texts, analyzer):
     """Calculate average sentiment score across multiple texts.
     
@@ -219,10 +207,48 @@ def sentiment_score(texts, analyzer):
     return total / len(texts)
 
 
+def flatten_comment_bodies(comments, bodies, limit):
+    for comment in comments:
+        if len(bodies) >= limit:
+            return
+        body = comment.get("body")
+        if body:
+            bodies.append(body)
+        if comment.get("replies"):
+            flatten_comment_bodies(comment["replies"], bodies, limit)
+
+
+def summarize_post(llm, prompt, title, body, comments):
+    if not (title or body or comments):
+        return ""
+
+    formatted = prompt.format(
+        title=title or "",
+        body=body or "",
+        comments=comments or "",
+    )
+    response = llm.invoke(formatted)
+    return getattr(response, "content", response) or ""
+
+
 # ================= MAIN =================
 
 def main():
     sia = SentimentIntensityAnalyzer()
+    llm = ChatOllama(
+        model="llama3.2:1b",
+        temperature=0.0,
+        reasoning=None,
+        num_predict=256
+    )
+    prompt = PromptTemplate.from_template(
+        "Summarize this Reddit post and its top comments in 2-3 sentences. "
+        "Capture the main topic and overall reaction, focus on the positive and negative sentiments mentioned in the post and comments.\n\n"
+        "Post title: {title}\n"
+        "Post body: {body}\n"
+        "Top comments:\n{comments}\n\n"
+        "Summary:"
+    )
     all_posts = []
     after = None
 
@@ -252,28 +278,34 @@ def main():
     for i, post in enumerate(all_posts, 1):
         print(f"\nPost {i}/{len(all_posts)}: {post.get('title')}")
 
-        # Start with post title and selftext for overall sentiment
-        texts = [post.get("title", ""), post.get("selftext", "")]
-
-        # Fetch top 200 comments with nested replies
         comments = fetch_top_comments(post["permalink"])
-        
-        # Add individual sentiment score to each comment
-        add_sentiment_to_comments(comments, sia)
-        
-        # Collect all comment text for overall sentiment calculation
-        collect_texts(comments, texts)
-
         post["comments"] = comments
-        # Overall sentiment: average of post content + all comments
-        post["sentiment_score"] = round(sentiment_score(texts, sia), 4)
+        comment_bodies = []
+        flatten_comment_bodies(comments, comment_bodies, limit=20)
+        comments_text = "\n".join(comment_bodies)
+        try:
+            post["post_summary"] = summarize_post(
+                llm,
+                prompt,
+                post.get("title", ""),
+                post.get("selftext", ""),
+                comments_text,
+            )
+        except Exception as exc:
+            print(f"Summary error: {exc}")
+            post["post_summary"] = ""
+        post["sentiment_score"] = round(
+            sentiment_score([post.get("post_summary", "")], sia),
+            4,
+        )
 
     print("=== Writing CSV ===")
 
     fields = [
         "id", "title", "selftext", "author", "ups", "downs", "score",
         "num_comments", "created_utc", "upvote_ratio", "link_flair_text",
-        "is_self", "is_video", "url", "permalink", "sentiment_score", "comments"
+        "is_self", "is_video", "url", "permalink", "sentiment_score",
+        "post_summary", "comments"
     ]
 
     with open(OUTPUT_FILE, "w", newline="", encoding="utf-8") as f:
@@ -300,6 +332,7 @@ def main():
                 "url": p.get("url"),
                 "permalink": "https://reddit.com" + p.get("permalink", ""),
                 "sentiment_score": p.get("sentiment_score"),
+                "post_summary": p.get("post_summary", ""),
                 "comments": json.dumps(p.get("comments", []))
             })
 

@@ -39,6 +39,7 @@ SCHEMA = StructType(
         StructField("url", StringType(), True),
         StructField("permalink", StringType(), True),
         StructField("sentiment_score", DoubleType(), True),
+        StructField("post_summary", StringType(), True),
         StructField("comments", StringType(), True),
     ]
 )
@@ -123,6 +124,7 @@ def _clean_reddit_dataframe(df: DataFrame) -> DataFrame:
         _trim_or_null("url").alias("url"),
         _trim_or_null("permalink").alias("permalink"),
         F.col("sentiment_score").cast("double").alias("sentiment_score"),
+        _trim_or_null("post_summary").alias("post_summary"),
         F.col("comments").alias("comments"),
     )
 
