@@ -364,6 +364,13 @@
                           "themeColorType": "visualizationColors",
                           "position": 3
                         }
+                      },
+                      {
+                        "value": "Neutral",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 2
+                        }
                       }
                     ]
                   }
@@ -721,6 +728,13 @@
                         "color": {
                           "themeColorType": "visualizationColors",
                           "position": 3
+                        }
+                      },
+                      {
+                        "value": "Neutral",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 2
                         }
                       }
                     ]
