@@ -10,8 +10,8 @@
         "        CAST(TO_TIMESTAMP(created_utc) AS DATE) AS event_date,\n",
         "\n",
         "        CASE\n",
-        "            WHEN sentiment_score > 0.04 THEN 'Positive'\n",
-        "            WHEN sentiment_score < -0.04 THEN 'Negative'\n",
+        "            WHEN sentiment_score > 0.05 THEN 'Positive'\n",
+        "            WHEN sentiment_score < -0.05 THEN 'Negative'\n",
         "            ELSE 'Neutral'\n",
         "        END AS sentiment_bucket,\n",
         "\n",
@@ -37,20 +37,20 @@
         "        END AS issue_category,\n",
         "\n",
         "        CASE\n",
-        "            WHEN LOWER(title) LIKE '%tv%'\n",
-        "                 OR LOWER(title) LIKE '%roku%'\n",
-        "                 OR LOWER(title) LIKE '%lg%'\n",
+        "            WHEN LOWER(title) LIKE '%tv%' OR LOWER(selftext) LIKE '%tv%'\n",
+        "                 OR LOWER(title) LIKE '%roku%' OR LOWER(selftext) LIKE '%roku%'\n",
+        "                 OR LOWER(title) LIKE '%lg%' OR LOWER(selftext) LIKE '%lg%'\n",
         "                THEN 'Smart TV'\n",
-        "            WHEN LOWER(title) LIKE '%app%'\n",
-        "                 OR LOWER(title) LIKE '%mobile%'\n",
-        "                 OR LOWER(title) LIKE '%android%'\n",
-        "                 OR LOWER(title) LIKE '%iphone%'\n",
+        "            WHEN LOWER(title) LIKE '%app%' OR LOWER(selftext) LIKE '%app%'\n",
+        "                 OR LOWER(title) LIKE '%mobile%' OR LOWER(selftext) LIKE '%mobile%'\n",
+        "                 OR LOWER(title) LIKE '%android%' OR LOWER(selftext) LIKE '%android%'\n",
+        "                 OR LOWER(title) LIKE '%iphone%' OR LOWER(selftext) LIKE '%iphone%'\n",
         "                THEN 'Mobile App'\n",
-        "            WHEN LOWER(title) LIKE '%macbook%'\n",
-        "                 OR LOWER(title) LIKE '%browser%'\n",
-        "                 OR LOWER(title) LIKE '%laptop%'\n",
-        "                 OR LOWER(title) LIKE '%pc%'\n",
-        "                 OR LOWER(title) LIKE '%computer%'\n",
+        "            WHEN LOWER(title) LIKE '%macbook%' OR LOWER(selftext) LIKE '%macbook%'\n",
+        "                 OR LOWER(title) LIKE '%browser%' OR LOWER(selftext) LIKE '%browser%'\n",
+        "                 OR LOWER(title) LIKE '%laptop%' OR LOWER(selftext) LIKE '%laptop%'\n",
+        "                 OR LOWER(title) LIKE '%pc%' OR LOWER(selftext) LIKE '%pc%'\n",
+        "                 OR LOWER(title) LIKE '%computer%' OR LOWER(selftext) LIKE '%computer%'\n",
         "                THEN 'Web/Desktop'\n",
         "            ELSE 'Unknown/General'\n",
         "        END AS platform_detected,\n",
@@ -384,109 +384,6 @@
         },
         {
           "widget": {
-            "name": "w_viral_negative_line",
-            "queries": [
-              {
-                "name": "main_query",
-                "query": {
-                  "datasetName": "b4a8461d",
-                  "fields": [
-                    {
-                      "name": "daily(event_date)",
-                      "expression": "DATE_TRUNC(\"DAY\", `event_date`)"
-                    },
-                    {
-                      "name": "count(*)",
-                      "expression": "COUNT(`*`)"
-                    }
-                  ],
-                  "filters": [
-                    {
-                      "expression": "`sentiment_bucket` IN ('Negative')"
-                    }
-                  ],
-                  "disaggregated": false
-                }
-              }
-            ],
-            "spec": {
-              "version": 3,
-              "widgetType": "bar",
-              "encodings": {
-                "x": {
-                  "fieldName": "daily(event_date)",
-                  "displayName": "Date",
-                  "scale": {
-                    "type": "temporal"
-                  }
-                },
-                "y": {
-                  "fieldName": "count(*)",
-                  "displayName": "Negative Posts",
-                  "scale": {
-                    "type": "quantitative"
-                  }
-                }
-              },
-              "frame": {
-                "showTitle": true,
-                "title": "Negative Posts Over Time"
-              },
-              "mark": {
-                "colors": [
-                  {
-                    "themeColorType": "visualizationColors",
-                    "position": 4
-                  },
-                  {
-                    "themeColorType": "visualizationColors",
-                    "position": 2
-                  },
-                  {
-                    "themeColorType": "visualizationColors",
-                    "position": 3
-                  },
-                  {
-                    "themeColorType": "visualizationColors",
-                    "position": 4
-                  },
-                  {
-                    "themeColorType": "visualizationColors",
-                    "position": 5
-                  },
-                  {
-                    "themeColorType": "visualizationColors",
-                    "position": 6
-                  },
-                  {
-                    "themeColorType": "visualizationColors",
-                    "position": 7
-                  },
-                  {
-                    "themeColorType": "visualizationColors",
-                    "position": 8
-                  },
-                  {
-                    "themeColorType": "visualizationColors",
-                    "position": 9
-                  },
-                  {
-                    "themeColorType": "visualizationColors",
-                    "position": 10
-                  }
-                ]
-              }
-            }
-          },
-          "position": {
-            "x": 0,
-            "y": 25,
-            "width": 12,
-            "height": 5
-          }
-        },
-        {
-          "widget": {
             "name": "w_issue_category_trend",
             "queries": [
               {
@@ -548,7 +445,7 @@
           },
           "position": {
             "x": 0,
-            "y": 30,
+            "y": 25,
             "width": 12,
             "height": 6
           }
@@ -616,7 +513,7 @@
           },
           "position": {
             "x": 0,
-            "y": 36,
+            "y": 31,
             "width": 12,
             "height": 5
           }
@@ -683,7 +580,7 @@
           },
           "position": {
             "x": 0,
-            "y": 41,
+            "y": 36,
             "width": 12,
             "height": 5
           }
@@ -750,7 +647,7 @@
           },
           "position": {
             "x": 0,
-            "y": 46,
+            "y": 41,
             "width": 12,
             "height": 5
           }
@@ -843,7 +740,7 @@
           },
           "position": {
             "x": 0,
-            "y": 51,
+            "y": 46,
             "width": 12,
             "height": 5
           }
@@ -1006,6 +903,10 @@
                       "expression": "`post_summary`"
                     },
                     {
+                      "name": "num_comments",
+                      "expression": "`num_comments`"
+                    },
+                    {
                       "name": "sentiment_bucket",
                       "expression": "`sentiment_bucket`"
                     },
@@ -1093,10 +994,37 @@
                     "type": "string",
                     "displayAs": "string",
                     "visible": true,
-                    "order": 17,
+                    "order": 16,
                     "title": "Post Summary",
                     "allowSearch": false,
                     "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false
+                  },
+                  {
+                    "fieldName": "num_comments",
+                    "numberFormat": "0",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "integer",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 18,
+                    "title": "Num. Comments",
+                    "allowSearch": false,
+                    "alignContent": "right",
                     "allowHTML": false,
                     "highlightLinks": false,
                     "useMonospaceFont": false,
@@ -1311,32 +1239,6 @@
                   "preserveWhitespace": false
                 },
                 {
-                  "numberFormat": "0",
-                  "booleanValues": [
-                    "false",
-                    "true"
-                  ],
-                  "imageUrlTemplate": "{{ @ }}",
-                  "imageTitleTemplate": "{{ @ }}",
-                  "imageWidth": "",
-                  "imageHeight": "",
-                  "linkUrlTemplate": "{{ @ }}",
-                  "linkTextTemplate": "{{ @ }}",
-                  "linkTitleTemplate": "{{ @ }}",
-                  "linkOpenInNewTab": true,
-                  "name": "num_comments",
-                  "type": "integer",
-                  "displayAs": "number",
-                  "order": 8,
-                  "title": "num_comments",
-                  "allowSearch": false,
-                  "alignContent": "right",
-                  "allowHTML": false,
-                  "highlightLinks": false,
-                  "useMonospaceFont": false,
-                  "preserveWhitespace": false
-                },
-                {
                   "dateTimeFormat": "DD/MM/YYYY HH:mm:ss.SSS",
                   "booleanValues": [
                     "false",
@@ -1353,7 +1255,7 @@
                   "name": "created_utc",
                   "type": "datetime",
                   "displayAs": "datetime",
-                  "order": 9,
+                  "order": 8,
                   "title": "created_utc",
                   "allowSearch": false,
                   "alignContent": "right",
@@ -1379,7 +1281,7 @@
                   "name": "upvote_ratio",
                   "type": "float",
                   "displayAs": "number",
-                  "order": 10,
+                  "order": 9,
                   "title": "upvote_ratio",
                   "allowSearch": false,
                   "alignContent": "right",
@@ -1404,7 +1306,7 @@
                   "name": "link_flair_text",
                   "type": "string",
                   "displayAs": "string",
-                  "order": 11,
+                  "order": 10,
                   "title": "link_flair_text",
                   "allowSearch": false,
                   "alignContent": "left",
@@ -1429,7 +1331,7 @@
                   "name": "is_self",
                   "type": "boolean",
                   "displayAs": "boolean",
-                  "order": 12,
+                  "order": 11,
                   "title": "is_self",
                   "allowSearch": false,
                   "alignContent": "right",
@@ -1454,7 +1356,7 @@
                   "name": "is_video",
                   "type": "boolean",
                   "displayAs": "boolean",
-                  "order": 13,
+                  "order": 12,
                   "title": "is_video",
                   "allowSearch": false,
                   "alignContent": "right",
@@ -1479,7 +1381,7 @@
                   "name": "url",
                   "type": "string",
                   "displayAs": "string",
-                  "order": 14,
+                  "order": 13,
                   "title": "url",
                   "allowSearch": false,
                   "alignContent": "left",
@@ -1504,7 +1406,7 @@
                   "name": "permalink",
                   "type": "string",
                   "displayAs": "string",
-                  "order": 15,
+                  "order": 14,
                   "title": "permalink",
                   "allowSearch": false,
                   "alignContent": "left",
@@ -1530,7 +1432,7 @@
                   "name": "sentiment_score",
                   "type": "float",
                   "displayAs": "number",
-                  "order": 16,
+                  "order": 15,
                   "title": "sentiment_score",
                   "allowSearch": false,
                   "alignContent": "right",
@@ -1555,7 +1457,7 @@
                   "name": "comments",
                   "type": "string",
                   "displayAs": "string",
-                  "order": 18,
+                  "order": 17,
                   "title": "comments",
                   "allowSearch": false,
                   "alignContent": "left",
@@ -1645,6 +1547,7 @@
               "paginationSize": "default",
               "condensed": true,
               "withRowNumber": false,
+              "firstNFrozenColumns": 2,
               "frame": {
                 "showTitle": true,
                 "title": "Engagement vs Sentiment"
@@ -1653,7 +1556,7 @@
           },
           "position": {
             "x": 0,
-            "y": 56,
+            "y": 51,
             "width": 12,
             "height": 7
           }
