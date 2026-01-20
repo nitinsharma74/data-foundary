@@ -682,12 +682,12 @@
                       "expression": "`event_date`"
                     },
                     {
-                      "name": "score",
-                      "expression": "`score`"
-                    },
-                    {
                       "name": "num_comments",
                       "expression": "`num_comments`"
+                    },
+                    {
+                      "name": "sentiment_score",
+                      "expression": "`sentiment_score`"
                     }
                   ],
                   "disaggregated": true
@@ -699,14 +699,14 @@
               "widgetType": "scatter",
               "encodings": {
                 "x": {
-                  "fieldName": "score",
+                  "fieldName": "event_date",
                   "displayName": "Score",
                   "scale": {
-                    "type": "quantitative"
+                    "type": "temporal"
                   }
                 },
                 "y": {
-                  "fieldName": "num_comments",
+                  "fieldName": "sentiment_score",
                   "displayName": "Comments",
                   "scale": {
                     "type": "quantitative"
@@ -745,6 +745,12 @@
                     ]
                   }
                 },
+                "size": {
+                  "fieldName": "num_comments",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
                 "extra": [
                   {
                     "fieldName": "title"
@@ -764,7 +770,7 @@
             "x": 0,
             "y": 46,
             "width": 12,
-            "height": 5
+            "height": 6
           }
         },
         {
@@ -921,6 +927,10 @@
                       "expression": "`title`"
                     },
                     {
+                      "name": "sentiment_score",
+                      "expression": "`sentiment_score`"
+                    },
+                    {
                       "name": "post_summary",
                       "expression": "`post_summary`"
                     },
@@ -994,6 +1004,33 @@
                     "title": "Title",
                     "allowSearch": false,
                     "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false
+                  },
+                  {
+                    "fieldName": "sentiment_score",
+                    "numberFormat": "0.00",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 15,
+                    "title": "sentiment_score",
+                    "allowSearch": false,
+                    "alignContent": "right",
                     "allowHTML": false,
                     "highlightLinks": false,
                     "useMonospaceFont": false,
@@ -1438,32 +1475,6 @@
                   "preserveWhitespace": false
                 },
                 {
-                  "numberFormat": "0.00",
-                  "booleanValues": [
-                    "false",
-                    "true"
-                  ],
-                  "imageUrlTemplate": "{{ @ }}",
-                  "imageTitleTemplate": "{{ @ }}",
-                  "imageWidth": "",
-                  "imageHeight": "",
-                  "linkUrlTemplate": "{{ @ }}",
-                  "linkTextTemplate": "{{ @ }}",
-                  "linkTitleTemplate": "{{ @ }}",
-                  "linkOpenInNewTab": true,
-                  "name": "sentiment_score",
-                  "type": "float",
-                  "displayAs": "number",
-                  "order": 15,
-                  "title": "sentiment_score",
-                  "allowSearch": false,
-                  "alignContent": "right",
-                  "allowHTML": false,
-                  "highlightLinks": false,
-                  "useMonospaceFont": false,
-                  "preserveWhitespace": false
-                },
-                {
                   "booleanValues": [
                     "false",
                     "true"
@@ -1578,7 +1589,7 @@
           },
           "position": {
             "x": 0,
-            "y": 51,
+            "y": 52,
             "width": 12,
             "height": 8
           }

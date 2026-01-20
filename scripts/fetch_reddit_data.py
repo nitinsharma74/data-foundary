@@ -3,7 +3,7 @@ import csv
 import time
 import json
 from datetime import datetime, timedelta, timezone
-from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+from transformers import pipeline
 from langchain_ollama import ChatOllama
 from langchain_core.prompts import PromptTemplate
 
@@ -12,9 +12,9 @@ from langchain_core.prompts import PromptTemplate
 SUBREDDIT = "crunchyroll"
 POSTS_URL = f"https://www.reddit.com/r/{SUBREDDIT}/new.json"
 
-DAYS_BACK = 60  # Number of days to look back for posts
+DAYS_BACK = 7  # Number of days to look back for posts
 
-OUTPUT_FILE = f"reddit_sentiment_analysis/fixtures/reddit_crunchyroll_{DAYS_BACK}days.csv"
+OUTPUT_FILE = f"reddit_crunchyroll_{DAYS_BACK}days.csv"
 
 REQUEST_DELAY = 3  # One request every 6 seconds to avoid rate limiting
 
@@ -145,66 +145,158 @@ def parse_comments(children):
             continue
 
         d = child["data"]
-        comment = {
-            "id": d.get("id"),
-            "author": d.get("author"),
-            "body": d.get("body"),
-            "score": d.get("score"),
-            "created_utc": datetime.fromtimestamp(
-                d.get("created_utc", 0), timezone.utc
-            ).isoformat() if d.get("created_utc") else None,
-            "replies": []
-        }
+        # Remove AutoModerator comments
+        if d.get("author") != "AutoModerator":
+            comment = {
+                "id": d.get("id"),
+                "author": d.get("author"),
+                "body": d.get("body"),
+                "score": d.get("score"),
+                "created_utc": datetime.fromtimestamp(
+                    d.get("created_utc", 0), timezone.utc
+                ).isoformat() if d.get("created_utc") else None,
+                "replies": []
+            }
 
-        replies = d.get("replies")
-        if isinstance(replies, dict):
-            comment["replies"] = parse_comments(
-                replies.get("data", {}).get("children", [])
-            )
+            replies = d.get("replies")
+            if isinstance(replies, dict):
+                comment["replies"] = parse_comments(
+                    replies.get("data", {}).get("children", [])
+                )
 
-        results.append(comment)
+            results.append(comment)
 
     return results
 
 
-def add_sentiment_to_comments(comments, analyzer):
-    """Recursively add individual VADER sentiment scores to each comment.
+def get_sentiment_bucket(score):
+    """Categorize sentiment score into positive, negative, or neutral.
     
     Args:
-        comments: List of comment dictionaries
-        analyzer: SentimentIntensityAnalyzer instance
-    
-    Modifies comments in-place by adding 'sentiment' field with compound score (-1.0 to 1.0)
-    """
-    for comment in comments:
-        if comment.get("body"):
-            score = analyzer.polarity_scores(comment["body"])["compound"]
-            comment["sentiment"] = round(score, 4)
-        
-        if comment.get("replies"):
-            add_sentiment_to_comments(comment["replies"], analyzer)
-
-
-# ================= SENTIMENT =================
-
-def sentiment_score(texts, analyzer):
-    """Calculate average sentiment score across multiple texts.
-    
-    Args:
-        texts: List of text strings to analyze
-        analyzer: SentimentIntensityAnalyzer instance
+        score: Sentiment score between -1 and 1
     
     Returns:
-        Average compound sentiment score across all texts (0.0 if empty)
+        'positive' if score >= 0.05, 'negative' if score <= -0.05, else 'neutral'
     """
-    if not texts:
-        return 0.0
+    if score >= 0.05:
+        return "positive"
+    elif score <= -0.05:
+        return "negative"
+    else:
+        return "neutral"
 
-    total = 0.0
-    for t in texts:
-        total += analyzer.polarity_scores(t)["compound"]
 
-    return total / len(texts)
+# ================= CATEGORIZATION =================
+
+# Device patterns (platforms and specific devices merged)
+DEVICE_PATTERNS = {
+    # Mobile - Android
+    "Android (Mobile)": [r"android(?!\s*tv)", r"android\s*phone", r"android\s*mobile"],
+    "Google Pixel": [r"pixel\s*\d+", r"pixel\s*pro", r"pixel\s*fold", r"google\s*pixel", r"\bpixel\b"],
+    "Samsung Galaxy": [r"galaxy\s*s\d+", r"galaxy\s*a\d+", r"galaxy\s*note", r"galaxy\s*z", r"galaxy\s*fold", r"galaxy\s*flip", r"samsung\s*galaxy"],
+    "OnePlus": [r"oneplus"],
+    "Xiaomi/Redmi/Poco": [r"xiaomi", r"redmi", r"poco"],
+    "Other Android": [r"oppo", r"vivo", r"motorola", r"moto\s*g"],
+    
+    # Mobile - iOS
+    "iOS": [r"\bios\b", r"ipados"],
+    "iPhone": [r"iphone\s*\d+", r"iphone\s*pro", r"iphone\s*max", r"iphone\s*plus", r"iphone\s*se", r"iphone"],
+    "iPad": [r"ipad\s*pro", r"ipad\s*air", r"ipad\s*mini", r"ipad"],
+    
+    # TV - Android TV
+    "Android TV": [r"android\s*tv", r"androidtv"],
+    "NVIDIA Shield": [r"nvidia\s*shield", r"shield\s*tv"],
+    
+    # TV - Fire TV
+    "Fire TV": [r"fire\s*tv", r"firetv", r"fire\s*stick", r"firestick", r"amazon\s*fire"],
+    
+    # TV - Chromecast / Google TV
+    "Chromecast": [r"chromecast", r"chrome\s*cast", r"google\s*tv"],
+    
+    # TV - Roku
+    "Roku": [r"roku\s*ultra", r"roku\s*express", r"roku\s*streaming\s*stick", r"roku"],
+    
+    # TV - Apple TV / tvOS
+    "Apple TV": [r"apple\s*tv\s*4k", r"apple\s*tv", r"tvos"],
+    
+    # TV - Smart TVs
+    "Smart TV (LG)": [r"lg\s*tv", r"webos"],
+    "Smart TV (Samsung)": [r"samsung\s*tv", r"tizen"],
+    "Smart TV (Sony)": [r"sony\s*tv"],
+    "Smart TV (Other)": [r"smart\s*tv", r"smarttv", r"vizio", r"hisense", r"tcl\s*tv", r"set\s*top\s*box"],
+    
+    # Game Consoles
+    "PlayStation": [r"ps5", r"ps4", r"playstation\s*5", r"playstation\s*4", r"playstation"],
+    "Xbox": [r"xbox\s*series", r"xbox\s*one", r"xbox"],
+    "Nintendo Switch": [r"nintendo\s*switch", r"switch"],
+    
+    # Desktop / Browser
+    "Windows App": [r"windows\s*app", r"windows\s*10", r"windows\s*11", r"win\s*10", r"win\s*11", r"pc\s*app", r"desktop\s*app"],
+    "Browser (Safari)": [r"safari"],
+    "Browser (Chrome)": [r"\bchrome\b(?!\s*cast)"],
+    "Browser (Firefox)": [r"firefox"],
+    "Browser (Edge)": [r"\bedge\b"],
+    "Browser (Other)": [r"browser", r"web\s*player", r"webapp"],
+}
+
+# Issue type patterns
+ISSUE_TYPE_PATTERNS = {
+    "Billing": [r"billing", r"charged", r"charge", r"payment", r"refund", r"invoice", r"price", r"cost", r"fee"],
+    "Account": [r"account", r"login", r"log\s*in", r"password", r"sign\s*in", r"signin", r"logout", r"sign\s*out", r"profile", r"subscription", r"cancel", r"trial", r"premium", r"membership"],
+    "Content - Subs Text/Typo": [r"subtitle", r"subtitles", r"subs", r"typo", r"translation", r"translated", r"text\s*error", r"wrong\s*text", r"misspell", r"caption"],
+    "Content - Dubs": [r"\bdub\b", r"dubs", r"dubbing", r"dubbed", r"english\s*dub", r"japanese\s*dub", r"voice\s*actor", r"voice\s*over", r"audio\s*track"],
+    "Content - Video Artifacts": [r"artifact", r"glitch", r"pixelat", r"blocky", r"visual\s*bug", r"video\s*quality", r"blurry", r"fuzzy", r"distort"],
+    "Playback - Errors": [r"playback\s*error", r"error\s*code", r"won't\s*play", r"can't\s*play", r"cannot\s*play", r"not\s*playing", r"failed\s*to\s*play", r"video\s*error", r"stream\s*error"],
+    "Playback - Rebuffers": [r"buffer", r"buffering", r"rebuffer", r"loading", r"stuck", r"freeze", r"freezing", r"frozen", r"lag", r"lagging", r"slow"],
+    "Playback - Play Delay": [r"delay", r"latency", r"slow\s*start", r"takes\s*forever", r"long\s*load", r"won't\s*load"],
+    "Playback - Subs Rendering": [r"subs?\s*not\s*showing", r"subtitle\s*rendering", r"subs?\s*out\s*of\s*sync", r"subs?\s*sync", r"subtitle\s*delay", r"subs?\s*timing", r"subs?\s*missing", r"no\s*subtitles?"],
+    "UX/App - Crashes": [r"crash", r"crashing", r"crashed", r"force\s*close", r"app\s*closes", r"keeps\s*closing", r"shuts\s*down", r"not\s*responding"],
+    "UX/App - Malformed UI": [r"ui\s*bug", r"interface", r"layout", r"display\s*issue", r"button", r"menu", r"navigation", r"screen\s*issue", r"visual\s*glitch", r"broken\s*ui"],
+}
+
+
+def categorize_text(text, patterns_dict):
+    """Match text against pattern dictionary and return all matching categories.
+    
+    Args:
+        text: Text to search (lowercase)
+        patterns_dict: Dict of category -> list of regex patterns
+    
+    Returns:
+        List of matching category names
+    """
+    import re
+    matches = []
+    for category, patterns in patterns_dict.items():
+        for pattern in patterns:
+            if re.search(pattern, text, re.IGNORECASE):
+                matches.append(category)
+                break  # Only add category once
+    return matches
+
+
+def extract_categories(title, selftext):
+    """Extract device and issue type from post title and body.
+    
+    Args:
+        title: Post title
+        selftext: Post body text
+    
+    Returns:
+        Dict with device and issue_type fields
+    """
+    combined_text = f"{title or ''} {selftext or ''}".lower()
+    
+    # Extract devices (platforms and specific devices)
+    devices = categorize_text(combined_text, DEVICE_PATTERNS)
+    
+    # Extract issue types
+    issues = categorize_text(combined_text, ISSUE_TYPE_PATTERNS)
+    
+    return {
+        "device": ", ".join(devices) if devices else "",
+        "issue_type": ", ".join(issues) if issues else "",
+    }
 
 
 def flatten_comment_bodies(comments, bodies, limit):
@@ -234,21 +326,29 @@ def summarize_post(llm, prompt, title, body, comments):
 # ================= MAIN =================
 
 def main():
-    sia = SentimentIntensityAnalyzer()
+    sentiment_pipeline = pipeline("sentiment-analysis")
     llm = ChatOllama(
         model="llama3.2:1b",
         temperature=0.0,
         reasoning=None,
         num_predict=256
     )
+    
     prompt = PromptTemplate.from_template(
-        "Summarize this Reddit post and its top comments in 2-3 sentences. "
-        "Capture the main topic and overall reaction, focus on the positive and negative sentiments mentioned in the post and comments.\n\n"
+        "Summarize this Reddit post and its comments in 2-3 sentences.\n\n"
+        "RULES:\n"
+        "- State the main topic or issue being discussed\n"
+        "- Note the overall community reaction (positive, negative, or mixed)\n"
+        "- Mention specific complaints or praises if repeated by multiple users\n"
+        "- Include relevant context: device (iOS/Android/TV/PC), app version, or feature mentioned\n"
+        "- Output ONLY the summary text, no labels or introductions\n"
+        "- Do not invent information not present in the content\n\n"
         "Post title: {title}\n"
         "Post body: {body}\n"
         "Top comments:\n{comments}\n\n"
         "Summary:"
     )
+
     all_posts = []
     after = None
 
@@ -294,17 +394,39 @@ def main():
         except Exception as exc:
             print(f"Summary error: {exc}")
             post["post_summary"] = ""
-        post["sentiment_score"] = round(
-            sentiment_score([post.get("post_summary", "")], sia),
-            4,
-        )
+        
+        # Combine title, selftext, and comments for sentiment analysis
+        sentiment_texts = []
+        if post.get("title"):
+            sentiment_texts.append(f"[TITLE] {post['title']}")
+        if post.get("selftext"):
+            sentiment_texts.append(f"[BODY] {post['selftext']}")
+        for comment_body in comment_bodies:
+            sentiment_texts.append(f"[COMMENT] {comment_body}")
+        
+        # Transformer sentiment on post title, selftext, and comments
+        combined_text = " ".join(sentiment_texts)
+        if combined_text:
+            result = sentiment_pipeline(combined_text[:512])[0]
+            post["sentiment_score_transformer"] = round(
+                result["score"] if result["label"] == "POSITIVE" else -result["score"], 4
+            )
+        else:
+            post["sentiment_score_transformer"] = 0.0
+        post["sentiment_bucket_transformer"] = get_sentiment_bucket(post["sentiment_score_transformer"])
+        
+        # Extract device and issue type categories
+        categories = extract_categories(post.get("title", ""), post.get("selftext", ""))
+        post["device"] = categories["device"]
+        post["issue_type"] = categories["issue_type"]
 
     print("=== Writing CSV ===")
 
     fields = [
         "id", "title", "selftext", "author", "ups", "downs", "score",
         "num_comments", "created_utc", "upvote_ratio", "link_flair_text",
-        "is_self", "is_video", "url", "permalink", "sentiment_score",
+        "is_self", "is_video", "url", "permalink", "sentiment_score_transformer",
+        "sentiment_bucket_transformer", "device", "issue_type",
         "post_summary", "comments"
     ]
 
@@ -331,7 +453,10 @@ def main():
                 "is_video": p.get("is_video"),
                 "url": p.get("url"),
                 "permalink": "https://reddit.com" + p.get("permalink", ""),
-                "sentiment_score": p.get("sentiment_score"),
+                "sentiment_score_transformer": p.get("sentiment_score_transformer"),
+                "sentiment_bucket_transformer": p.get("sentiment_bucket_transformer"),
+                "device": p.get("device", ""),
+                "issue_type": p.get("issue_type", ""),
                 "post_summary": p.get("post_summary", ""),
                 "comments": json.dumps(p.get("comments", []))
             })
