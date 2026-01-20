@@ -678,6 +678,10 @@
                       "expression": "`title`"
                     },
                     {
+                      "name": "event_date",
+                      "expression": "`event_date`"
+                    },
+                    {
                       "name": "score",
                       "expression": "`score`"
                     },
@@ -744,6 +748,9 @@
                 "extra": [
                   {
                     "fieldName": "title"
+                  },
+                  {
+                    "fieldName": "event_date"
                   }
                 ]
               },
