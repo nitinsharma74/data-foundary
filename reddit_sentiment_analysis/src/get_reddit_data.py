@@ -38,7 +38,10 @@ SCHEMA = StructType(
         StructField("is_video", BooleanType(), True),
         StructField("url", StringType(), True),
         StructField("permalink", StringType(), True),
-        StructField("sentiment_score", DoubleType(), True),
+        StructField("sentiment_score_transformer", DoubleType(), True),
+        StructField("sentiment_bucket_transformer", StringType(), True),
+        StructField("device", StringType(), True),
+        StructField("issue_type", StringType(), True),
         StructField("post_summary", StringType(), True),
         StructField("comments", StringType(), True),
     ]
@@ -123,7 +126,10 @@ def _clean_reddit_dataframe(df: DataFrame) -> DataFrame:
         .alias("is_video"),
         _trim_or_null("url").alias("url"),
         _trim_or_null("permalink").alias("permalink"),
-        F.col("sentiment_score").cast("double").alias("sentiment_score"),
+        F.col("sentiment_score_transformer").cast("double").alias("sentiment_score_transformer"),
+        _trim_or_null("sentiment_bucket_transformer").alias("sentiment_bucket_transformer"),
+        _trim_or_null("device").alias("device"),
+        _trim_or_null("issue_type").alias("issue_type"),
         _trim_or_null("post_summary").alias("post_summary"),
         F.col("comments").alias("comments"),
     )

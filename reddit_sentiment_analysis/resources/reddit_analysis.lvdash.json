@@ -10,8 +10,8 @@
         "        CAST(TO_TIMESTAMP(created_utc) AS DATE) AS event_date,\n",
         "\n",
         "        CASE\n",
-        "            WHEN sentiment_score > 0.05 THEN 'Positive'\n",
-        "            WHEN sentiment_score < -0.05 THEN 'Negative'\n",
+        "            WHEN sentiment_score_transformer > 0.05 THEN 'Positive'\n",
+        "            WHEN sentiment_score_transformer < -0.05 THEN 'Negative'\n",
         "            ELSE 'Neutral'\n",
         "        END AS sentiment_bucket,\n",
         "\n",
@@ -122,7 +122,7 @@
             "x": 0,
             "y": 0,
             "width": 12,
-            "height": 1
+            "height": 2
           }
         },
         {
@@ -160,7 +160,7 @@
           },
           "position": {
             "x": 0,
-            "y": 1,
+            "y": 2,
             "width": 3,
             "height": 4
           }
@@ -237,7 +237,7 @@
           },
           "position": {
             "x": 3,
-            "y": 1,
+            "y": 2,
             "width": 9,
             "height": 4
           }
@@ -294,7 +294,7 @@
           },
           "position": {
             "x": 0,
-            "y": 5,
+            "y": 6,
             "width": 12,
             "height": 5
           }
@@ -385,7 +385,7 @@
           },
           "position": {
             "x": 0,
-            "y": 20,
+            "y": 21,
             "width": 12,
             "height": 5
           }
@@ -400,8 +400,8 @@
                   "datasetName": "b4a8461d",
                   "fields": [
                     {
-                      "name": "issue_category",
-                      "expression": "`issue_category`"
+                      "name": "issue_type",
+                      "expression": "`issue_type`"
                     },
                     {
                       "name": "daily(event_date)",
@@ -435,7 +435,7 @@
                   }
                 },
                 "color": {
-                  "fieldName": "issue_category",
+                  "fieldName": "issue_type",
                   "legend": {
                     "position": "bottom"
                   },
@@ -453,7 +453,7 @@
           },
           "position": {
             "x": 0,
-            "y": 25,
+            "y": 26,
             "width": 12,
             "height": 6
           }
@@ -468,8 +468,8 @@
                   "datasetName": "b4a8461d",
                   "fields": [
                     {
-                      "name": "platform_detected",
-                      "expression": "`platform_detected`"
+                      "name": "device",
+                      "expression": "`device`"
                     },
                     {
                       "name": "daily(event_date)",
@@ -503,7 +503,7 @@
                   }
                 },
                 "color": {
-                  "fieldName": "platform_detected",
+                  "fieldName": "device",
                   "legend": {
                     "position": "bottom"
                   },
@@ -521,9 +521,9 @@
           },
           "position": {
             "x": 0,
-            "y": 31,
+            "y": 32,
             "width": 12,
-            "height": 5
+            "height": 6
           }
         },
         {
@@ -588,7 +588,7 @@
           },
           "position": {
             "x": 0,
-            "y": 36,
+            "y": 38,
             "width": 12,
             "height": 5
           }
@@ -655,7 +655,7 @@
           },
           "position": {
             "x": 0,
-            "y": 41,
+            "y": 43,
             "width": 12,
             "height": 5
           }
@@ -686,8 +686,8 @@
                       "expression": "`num_comments`"
                     },
                     {
-                      "name": "sentiment_score",
-                      "expression": "`sentiment_score`"
+                      "name": "ups",
+                      "expression": "`ups`"
                     }
                   ],
                   "disaggregated": true
@@ -699,14 +699,14 @@
               "widgetType": "scatter",
               "encodings": {
                 "x": {
-                  "fieldName": "event_date",
-                  "displayName": "Score",
+                  "fieldName": "ups",
+                  "displayName": "Upvotes",
                   "scale": {
-                    "type": "temporal"
+                    "type": "quantitative"
                   }
                 },
                 "y": {
-                  "fieldName": "sentiment_score",
+                  "fieldName": "num_comments",
                   "displayName": "Comments",
                   "scale": {
                     "type": "quantitative"
@@ -749,7 +749,8 @@
                   "fieldName": "num_comments",
                   "scale": {
                     "type": "quantitative"
-                  }
+                  },
+                  "displayName": "Comments"
                 },
                 "extra": [
                   {
@@ -762,13 +763,13 @@
               },
               "frame": {
                 "showTitle": true,
-                "title": "Engagement vs Sentiment"
+                "title": "Upvotes vs Comments"
               }
             }
           },
           "position": {
             "x": 0,
-            "y": 46,
+            "y": 48,
             "width": 12,
             "height": 6
           }
@@ -838,7 +839,7 @@
           },
           "position": {
             "x": 0,
-            "y": 15,
+            "y": 16,
             "width": 12,
             "height": 5
           }
@@ -904,7 +905,7 @@
           },
           "position": {
             "x": 0,
-            "y": 10,
+            "y": 11,
             "width": 12,
             "height": 5
           }
@@ -925,10 +926,6 @@
                     {
                       "name": "title",
                       "expression": "`title`"
-                    },
-                    {
-                      "name": "sentiment_score",
-                      "expression": "`sentiment_score`"
                     },
                     {
                       "name": "post_summary",
@@ -1004,33 +1001,6 @@
                     "title": "Title",
                     "allowSearch": false,
                     "alignContent": "left",
-                    "allowHTML": false,
-                    "highlightLinks": false,
-                    "useMonospaceFont": false,
-                    "preserveWhitespace": false
-                  },
-                  {
-                    "fieldName": "sentiment_score",
-                    "numberFormat": "0.00",
-                    "booleanValues": [
-                      "false",
-                      "true"
-                    ],
-                    "imageUrlTemplate": "{{ @ }}",
-                    "imageTitleTemplate": "{{ @ }}",
-                    "imageWidth": "",
-                    "imageHeight": "",
-                    "linkUrlTemplate": "{{ @ }}",
-                    "linkTextTemplate": "{{ @ }}",
-                    "linkTitleTemplate": "{{ @ }}",
-                    "linkOpenInNewTab": true,
-                    "type": "float",
-                    "displayAs": "number",
-                    "visible": true,
-                    "order": 15,
-                    "title": "sentiment_score",
-                    "allowSearch": false,
-                    "alignContent": "right",
                     "allowHTML": false,
                     "highlightLinks": false,
                     "useMonospaceFont": false,
@@ -1573,6 +1543,107 @@
                   "highlightLinks": false,
                   "useMonospaceFont": false,
                   "preserveWhitespace": false
+                },
+                {
+                  "numberFormat": "0.00",
+                  "booleanValues": [
+                    "false",
+                    "true"
+                  ],
+                  "imageUrlTemplate": "{{ @ }}",
+                  "imageTitleTemplate": "{{ @ }}",
+                  "imageWidth": "",
+                  "imageHeight": "",
+                  "linkUrlTemplate": "{{ @ }}",
+                  "linkTextTemplate": "{{ @ }}",
+                  "linkTitleTemplate": "{{ @ }}",
+                  "linkOpenInNewTab": true,
+                  "name": "sentiment_score_transformer",
+                  "type": "float",
+                  "displayAs": "number",
+                  "order": 100015,
+                  "title": "sentiment_score_transformer",
+                  "allowSearch": false,
+                  "alignContent": "right",
+                  "allowHTML": false,
+                  "highlightLinks": false,
+                  "useMonospaceFont": false,
+                  "preserveWhitespace": false
+                },
+                {
+                  "booleanValues": [
+                    "false",
+                    "true"
+                  ],
+                  "imageUrlTemplate": "{{ @ }}",
+                  "imageTitleTemplate": "{{ @ }}",
+                  "imageWidth": "",
+                  "imageHeight": "",
+                  "linkUrlTemplate": "{{ @ }}",
+                  "linkTextTemplate": "{{ @ }}",
+                  "linkTitleTemplate": "{{ @ }}",
+                  "linkOpenInNewTab": true,
+                  "name": "sentiment_bucket_transformer",
+                  "type": "string",
+                  "displayAs": "string",
+                  "order": 100016,
+                  "title": "sentiment_bucket_transformer",
+                  "allowSearch": false,
+                  "alignContent": "left",
+                  "allowHTML": false,
+                  "highlightLinks": false,
+                  "useMonospaceFont": false,
+                  "preserveWhitespace": false
+                },
+                {
+                  "booleanValues": [
+                    "false",
+                    "true"
+                  ],
+                  "imageUrlTemplate": "{{ @ }}",
+                  "imageTitleTemplate": "{{ @ }}",
+                  "imageWidth": "",
+                  "imageHeight": "",
+                  "linkUrlTemplate": "{{ @ }}",
+                  "linkTextTemplate": "{{ @ }}",
+                  "linkTitleTemplate": "{{ @ }}",
+                  "linkOpenInNewTab": true,
+                  "name": "device",
+                  "type": "string",
+                  "displayAs": "string",
+                  "order": 100017,
+                  "title": "device",
+                  "allowSearch": false,
+                  "alignContent": "left",
+                  "allowHTML": false,
+                  "highlightLinks": false,
+                  "useMonospaceFont": false,
+                  "preserveWhitespace": false
+                },
+                {
+                  "booleanValues": [
+                    "false",
+                    "true"
+                  ],
+                  "imageUrlTemplate": "{{ @ }}",
+                  "imageTitleTemplate": "{{ @ }}",
+                  "imageWidth": "",
+                  "imageHeight": "",
+                  "linkUrlTemplate": "{{ @ }}",
+                  "linkTextTemplate": "{{ @ }}",
+                  "linkTitleTemplate": "{{ @ }}",
+                  "linkOpenInNewTab": true,
+                  "name": "issue_type",
+                  "type": "string",
+                  "displayAs": "string",
+                  "order": 100018,
+                  "title": "issue_type",
+                  "allowSearch": false,
+                  "alignContent": "left",
+                  "allowHTML": false,
+                  "highlightLinks": false,
+                  "useMonospaceFont": false,
+                  "preserveWhitespace": false
                 }
               ],
               "allowHTMLByDefault": false,
@@ -1589,7 +1660,7 @@
           },
           "position": {
             "x": 0,
-            "y": 52,
+            "y": 54,
             "width": 12,
             "height": 8
           }
