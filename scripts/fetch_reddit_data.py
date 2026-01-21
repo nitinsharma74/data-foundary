@@ -12,7 +12,7 @@ from langchain_core.prompts import PromptTemplate
 SUBREDDIT = "crunchyroll"
 POSTS_URL = f"https://www.reddit.com/r/{SUBREDDIT}/new.json"
 
-DAYS_BACK = 7  # Number of days to look back for posts
+DAYS_BACK = 60  # Number of days to look back for posts
 
 OUTPUT_FILE = f"reddit_crunchyroll_{DAYS_BACK}days.csv"
 
@@ -188,55 +188,53 @@ def get_sentiment_bucket(score):
 
 # ================= CATEGORIZATION =================
 
-# Device patterns (platforms and specific devices merged)
+# Device patterns (simplified categories)
 DEVICE_PATTERNS = {
-    # Mobile - Android
-    "Android (Mobile)": [r"android(?!\s*tv)", r"android\s*phone", r"android\s*mobile"],
-    "Google Pixel": [r"pixel\s*\d+", r"pixel\s*pro", r"pixel\s*fold", r"google\s*pixel", r"\bpixel\b"],
-    "Samsung Galaxy": [r"galaxy\s*s\d+", r"galaxy\s*a\d+", r"galaxy\s*note", r"galaxy\s*z", r"galaxy\s*fold", r"galaxy\s*flip", r"samsung\s*galaxy"],
-    "OnePlus": [r"oneplus"],
-    "Xiaomi/Redmi/Poco": [r"xiaomi", r"redmi", r"poco"],
-    "Other Android": [r"oppo", r"vivo", r"motorola", r"moto\s*g"],
+    # Mobile (iOS and Android)
+    "Mobile": [
+        r"android(?!\s*tv)", r"android\s*phone", r"android\s*mobile",
+        r"pixel\s*\d+", r"pixel\s*pro", r"pixel\s*fold", r"google\s*pixel", r"\bpixel\b",
+        r"galaxy\s*s\d+", r"galaxy\s*a\d+", r"galaxy\s*note", r"galaxy\s*z", r"galaxy\s*fold", r"galaxy\s*flip", r"samsung\s*galaxy",
+        r"oneplus", r"xiaomi", r"redmi", r"poco", r"oppo", r"vivo", r"motorola", r"moto\s*g",
+        r"\bios\b", r"ipados",
+        r"iphone\s*\d+", r"iphone\s*pro", r"iphone\s*max", r"iphone\s*plus", r"iphone\s*se", r"iphone",
+        r"ipad\s*pro", r"ipad\s*air", r"ipad\s*mini", r"ipad",
+        r"mobile", r"phone",
+    ],
     
-    # Mobile - iOS
-    "iOS": [r"\bios\b", r"ipados"],
-    "iPhone": [r"iphone\s*\d+", r"iphone\s*pro", r"iphone\s*max", r"iphone\s*plus", r"iphone\s*se", r"iphone"],
-    "iPad": [r"ipad\s*pro", r"ipad\s*air", r"ipad\s*mini", r"ipad"],
+    # TV (Apple TV, Android TV)
+    "TV": [
+        r"android\s*tv", r"androidtv",
+        r"nvidia\s*shield", r"shield\s*tv",
+        r"apple\s*tv\s*4k", r"apple\s*tv", r"tvos",
+        r"\btv\s*app\b",
+    ],
     
-    # TV - Android TV
-    "Android TV": [r"android\s*tv", r"androidtv"],
-    "NVIDIA Shield": [r"nvidia\s*shield", r"shield\s*tv"],
+    # Smart TV (Fire TV, Chromecast/Google TV, LG, Samsung, Sony, etc.)
+    "Smart TV": [
+        r"fire\s*tv", r"firetv", r"fire\s*stick", r"firestick", r"amazon\s*fire",
+        r"chromecast", r"chrome\s*cast", r"google\s*tv",
+        r"lg\s*tv", r"webos",
+        r"samsung\s*tv", r"tizen",
+        r"sony\s*tv",
+        r"smart\s*tv", r"smarttv", r"vizio", r"hisense", r"tcl\s*tv", r"set\s*top\s*box",
+    ],
     
-    # TV - Fire TV
-    "Fire TV": [r"fire\s*tv", r"firetv", r"fire\s*stick", r"firestick", r"amazon\s*fire"],
-    
-    # TV - Chromecast / Google TV
-    "Chromecast": [r"chromecast", r"chrome\s*cast", r"google\s*tv"],
-    
-    # TV - Roku
+    # Roku
     "Roku": [r"roku\s*ultra", r"roku\s*express", r"roku\s*streaming\s*stick", r"roku"],
     
-    # TV - Apple TV / tvOS
-    "Apple TV": [r"apple\s*tv\s*4k", r"apple\s*tv", r"tvos"],
+    # Game Console
+    "Game Console": [
+        r"ps5", r"ps4", r"playstation\s*5", r"playstation\s*4", r"playstation",
+        r"xbox\s*series", r"xbox\s*one", r"xbox",
+        r"nintendo\s*switch", r"switch",
+    ],
     
-    # TV - Smart TVs
-    "Smart TV (LG)": [r"lg\s*tv", r"webos"],
-    "Smart TV (Samsung)": [r"samsung\s*tv", r"tizen"],
-    "Smart TV (Sony)": [r"sony\s*tv"],
-    "Smart TV (Other)": [r"smart\s*tv", r"smarttv", r"vizio", r"hisense", r"tcl\s*tv", r"set\s*top\s*box"],
-    
-    # Game Consoles
-    "PlayStation": [r"ps5", r"ps4", r"playstation\s*5", r"playstation\s*4", r"playstation"],
-    "Xbox": [r"xbox\s*series", r"xbox\s*one", r"xbox"],
-    "Nintendo Switch": [r"nintendo\s*switch", r"switch"],
-    
-    # Desktop / Browser
-    "Windows App": [r"windows\s*app", r"windows\s*10", r"windows\s*11", r"win\s*10", r"win\s*11", r"pc\s*app", r"desktop\s*app"],
-    "Browser (Safari)": [r"safari"],
-    "Browser (Chrome)": [r"\bchrome\b(?!\s*cast)"],
-    "Browser (Firefox)": [r"firefox"],
-    "Browser (Edge)": [r"\bedge\b"],
-    "Browser (Other)": [r"browser", r"web\s*player", r"webapp"],
+    # Browser
+    "Browser": [
+        r"safari", r"\bchrome\b(?!\s*cast)", r"firefox", r"\bedge\b",
+        r"browser", r"web\s*player", r"webapp", r"website",
+    ],
 }
 
 # Issue type patterns
@@ -326,7 +324,14 @@ def summarize_post(llm, prompt, title, body, comments):
 # ================= MAIN =================
 
 def main():
+    """
+    The sentiment-analysis pipeline uses a pretrained transformer-based text classification model 
+    (a neural network fine-tuned on labeled sentiment data) to process your text, 
+    outputting a label like POSITIVE or NEGATIVE with a confidence score.
+    """
     sentiment_pipeline = pipeline("sentiment-analysis")
+
+    """Initialize LLM and prompt template for summarization."""
     llm = ChatOllama(
         model="llama3.2:1b",
         temperature=0.0,
