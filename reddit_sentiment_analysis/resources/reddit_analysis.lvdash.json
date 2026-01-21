@@ -16,18 +16,11 @@
         "        END AS sentiment_bucket,\n",
         "\n",
         "        CASE\n",
-        "            WHEN (num_comments + score) > 50 THEN '4-Viral'\n",
-        "            WHEN (num_comments + score) > 20 THEN '3-High'\n",
-        "            WHEN (num_comments + score) > 5  THEN '2-Medium'\n",
-        "            ELSE '1-Low'\n",
-        "        END AS engagement_level,\n",
-        "\n",
-        "        CASE\n",
         "            WHEN link_flair_text IN ('Streaming | Technical Issue', 'Technical Issue')\n",
-        "                 OR LOWER(title) LIKE '%bug%'\n",
-        "                 OR LOWER(title) LIKE '%error%'\n",
-        "                 OR LOWER(title) LIKE '%crash%'\n",
-        "                 OR LOWER(title) LIKE '%issue%'\n",
+        "                OR LOWER(title) LIKE '%bug%'\n",
+        "                OR LOWER(title) LIKE '%error%'\n",
+        "                OR LOWER(title) LIKE '%crash%'\n",
+        "                OR LOWER(title) LIKE '%issue%'\n",
         "                THEN 'Technical/Product'\n",
         "            WHEN link_flair_text IN ('Account/Membership', 'Manga', 'Dubs')\n",
         "                THEN 'Billing/Service'\n",
@@ -37,23 +30,11 @@
         "        END AS issue_category,\n",
         "\n",
         "        CASE\n",
-        "            WHEN LOWER(title) LIKE '%tv%' OR LOWER(selftext) LIKE '%tv%'\n",
-        "                 OR LOWER(title) LIKE '%roku%' OR LOWER(selftext) LIKE '%roku%'\n",
-        "                 OR LOWER(title) LIKE '%lg%' OR LOWER(selftext) LIKE '%lg%'\n",
-        "                THEN 'Smart TV'\n",
-        "            WHEN LOWER(title) LIKE '%app%' OR LOWER(selftext) LIKE '%app%'\n",
-        "                 OR LOWER(title) LIKE '%mobile%' OR LOWER(selftext) LIKE '%mobile%'\n",
-        "                 OR LOWER(title) LIKE '%android%' OR LOWER(selftext) LIKE '%android%'\n",
-        "                 OR LOWER(title) LIKE '%iphone%' OR LOWER(selftext) LIKE '%iphone%'\n",
-        "                THEN 'Mobile App'\n",
-        "            WHEN LOWER(title) LIKE '%macbook%' OR LOWER(selftext) LIKE '%macbook%'\n",
-        "                 OR LOWER(title) LIKE '%browser%' OR LOWER(selftext) LIKE '%browser%'\n",
-        "                 OR LOWER(title) LIKE '%laptop%' OR LOWER(selftext) LIKE '%laptop%'\n",
-        "                 OR LOWER(title) LIKE '%pc%' OR LOWER(selftext) LIKE '%pc%'\n",
-        "                 OR LOWER(title) LIKE '%computer%' OR LOWER(selftext) LIKE '%computer%'\n",
-        "                THEN 'Web/Desktop'\n",
-        "            ELSE 'Unknown/General'\n",
-        "        END AS platform_detected,\n",
+        "            WHEN (num_comments + score) > 50 THEN '4-Viral'\n",
+        "            WHEN (num_comments + score) > 20 THEN '3-High'\n",
+        "            WHEN (num_comments + score) > 5  THEN '2-Medium'\n",
+        "            ELSE '1-Low'\n",
+        "        END AS engagement_level,\n",
         "\n",
         "        from_json(\n",
         "            comments,\n",
@@ -100,7 +81,7 @@
         "\n",
         "SELECT *\n",
         "FROM enriched_reddit_data\n",
-        "ORDER BY created_utc desc;\n"
+        "ORDER BY created_utc DESC;"
       ]
     }
   ],
@@ -114,7 +95,15 @@
             "name": "w_title",
             "multilineTextboxSpec": {
               "lines": [
-                "# Reddit Sentiment & Ops Monitoring"
+                "# Reddit Sentiment & Ops Monitoring\n",
+                "\n",
+                "- **ups**: Number of upvotes (positive votes) the post received. In the current Reddit API this often equals the `score` because Reddit hides separate downvote counts and `downs` is typically `0`. \n",
+                "- **downs**: Number of downvotes (negative votes) the post received. In modern API responses this field is usually `0` because Reddit no longer exposes downvote counts separately.\n",
+                "- **num\\_comments**: Total number of comments on the post — this counts all comments and replies under the submission.\n",
+                "- **score**: Net score of the post, equal to upvotes minus downvotes. Because the API often hides individual downvotes, `score` and `ups` frequently match.\n",
+                "- **is\\_self**: Boolean (`true` or `false`) indicating whether the post is a text (“self”) post hosted on Reddit (`true`) versus a link/media post (`false`).  \n",
+                "- **is\\_video**: Boolean (`true` or `false`) indicating whether the post contains a native Reddit video (`true`) versus other content types (text, link, image, etc.).  \n",
+                "- **upvote\\_ratio**: Ratio of upvotes to total votes, expressed as a float between `0.0` and `1.0`. It approximates the percent of total votes that are upvotes (even though exact upvote/downvote counts aren’t provided)."
               ]
             }
           },
@@ -122,7 +111,7 @@
             "x": 0,
             "y": 0,
             "width": 12,
-            "height": 2
+            "height": 5
           }
         },
         {
@@ -160,7 +149,7 @@
           },
           "position": {
             "x": 0,
-            "y": 2,
+            "y": 5,
             "width": 3,
             "height": 4
           }
@@ -237,7 +226,7 @@
           },
           "position": {
             "x": 3,
-            "y": 2,
+            "y": 5,
             "width": 9,
             "height": 4
           }
@@ -294,7 +283,7 @@
           },
           "position": {
             "x": 0,
-            "y": 6,
+            "y": 9,
             "width": 12,
             "height": 5
           }
@@ -385,7 +374,7 @@
           },
           "position": {
             "x": 0,
-            "y": 21,
+            "y": 24,
             "width": 12,
             "height": 5
           }
@@ -453,7 +442,7 @@
           },
           "position": {
             "x": 0,
-            "y": 26,
+            "y": 29,
             "width": 12,
             "height": 6
           }
@@ -521,7 +510,7 @@
           },
           "position": {
             "x": 0,
-            "y": 32,
+            "y": 35,
             "width": 12,
             "height": 6
           }
@@ -588,7 +577,7 @@
           },
           "position": {
             "x": 0,
-            "y": 38,
+            "y": 41,
             "width": 12,
             "height": 5
           }
@@ -625,12 +614,14 @@
               "encodings": {
                 "x": {
                   "fieldName": "issue_category",
+                  "displayName": "Issue Category",
                   "scale": {
                     "type": "categorical"
                   }
                 },
                 "y": {
                   "fieldName": "sentiment_bucket",
+                  "displayName": "Sentiment Bucket",
                   "scale": {
                     "type": "categorical"
                   }
@@ -655,9 +646,9 @@
           },
           "position": {
             "x": 0,
-            "y": 43,
+            "y": 46,
             "width": 12,
-            "height": 5
+            "height": 6
           }
         },
         {
@@ -769,7 +760,7 @@
           },
           "position": {
             "x": 0,
-            "y": 48,
+            "y": 52,
             "width": 12,
             "height": 6
           }
@@ -823,6 +814,7 @@
                   "legend": {
                     "position": "bottom"
                   },
+                  "displayName": "Link Flair Text",
                   "scale": {
                     "type": "categorical"
                   }
@@ -839,7 +831,7 @@
           },
           "position": {
             "x": 0,
-            "y": 16,
+            "y": 19,
             "width": 12,
             "height": 5
           }
@@ -905,7 +897,7 @@
           },
           "position": {
             "x": 0,
-            "y": 11,
+            "y": 14,
             "width": 12,
             "height": 5
           }
@@ -942,6 +934,10 @@
                     {
                       "name": "comments_array",
                       "expression": "`comments_array`"
+                    },
+                    {
+                      "name": "permalink",
+                      "expression": "`permalink`"
                     }
                   ],
                   "disaggregated": true
@@ -1023,7 +1019,7 @@
                     "type": "string",
                     "displayAs": "string",
                     "visible": true,
-                    "order": 16,
+                    "order": 14,
                     "title": "Post Summary",
                     "allowSearch": false,
                     "alignContent": "left",
@@ -1050,7 +1046,7 @@
                     "type": "integer",
                     "displayAs": "number",
                     "visible": true,
-                    "order": 18,
+                    "order": 16,
                     "title": "Num. Comments",
                     "allowSearch": false,
                     "alignContent": "right",
@@ -1076,7 +1072,7 @@
                     "type": "string",
                     "displayAs": "string",
                     "visible": true,
-                    "order": 19,
+                    "order": 17,
                     "title": "Sentiment Bucket",
                     "allowSearch": false,
                     "alignContent": "left",
@@ -1102,8 +1098,34 @@
                     "type": "complex",
                     "displayAs": "json",
                     "visible": true,
-                    "order": 23,
+                    "order": 21,
                     "title": "Comments",
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false
+                  },
+                  {
+                    "fieldName": "permalink",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 22,
+                    "title": "permalink",
                     "allowSearch": false,
                     "alignContent": "left",
                     "allowHTML": false,
@@ -1432,35 +1454,10 @@
                   "linkTextTemplate": "{{ @ }}",
                   "linkTitleTemplate": "{{ @ }}",
                   "linkOpenInNewTab": true,
-                  "name": "permalink",
-                  "type": "string",
-                  "displayAs": "string",
-                  "order": 14,
-                  "title": "permalink",
-                  "allowSearch": false,
-                  "alignContent": "left",
-                  "allowHTML": false,
-                  "highlightLinks": false,
-                  "useMonospaceFont": false,
-                  "preserveWhitespace": false
-                },
-                {
-                  "booleanValues": [
-                    "false",
-                    "true"
-                  ],
-                  "imageUrlTemplate": "{{ @ }}",
-                  "imageTitleTemplate": "{{ @ }}",
-                  "imageWidth": "",
-                  "imageHeight": "",
-                  "linkUrlTemplate": "{{ @ }}",
-                  "linkTextTemplate": "{{ @ }}",
-                  "linkTitleTemplate": "{{ @ }}",
-                  "linkOpenInNewTab": true,
                   "name": "comments",
                   "type": "string",
                   "displayAs": "string",
-                  "order": 17,
+                  "order": 15,
                   "title": "comments",
                   "allowSearch": false,
                   "alignContent": "left",
@@ -1485,7 +1482,7 @@
                   "name": "engagement_level",
                   "type": "string",
                   "displayAs": "string",
-                  "order": 20,
+                  "order": 18,
                   "title": "engagement_level",
                   "allowSearch": false,
                   "alignContent": "left",
@@ -1510,7 +1507,7 @@
                   "name": "issue_category",
                   "type": "string",
                   "displayAs": "string",
-                  "order": 21,
+                  "order": 19,
                   "title": "issue_category",
                   "allowSearch": false,
                   "alignContent": "left",
@@ -1535,7 +1532,7 @@
                   "name": "platform_detected",
                   "type": "string",
                   "displayAs": "string",
-                  "order": 22,
+                  "order": 20,
                   "title": "platform_detected",
                   "allowSearch": false,
                   "alignContent": "left",
@@ -1561,7 +1558,7 @@
                   "name": "sentiment_score_transformer",
                   "type": "float",
                   "displayAs": "number",
-                  "order": 100015,
+                  "order": 23,
                   "title": "sentiment_score_transformer",
                   "allowSearch": false,
                   "alignContent": "right",
@@ -1586,7 +1583,7 @@
                   "name": "sentiment_bucket_transformer",
                   "type": "string",
                   "displayAs": "string",
-                  "order": 100016,
+                  "order": 24,
                   "title": "sentiment_bucket_transformer",
                   "allowSearch": false,
                   "alignContent": "left",
@@ -1611,7 +1608,7 @@
                   "name": "device",
                   "type": "string",
                   "displayAs": "string",
-                  "order": 100017,
+                  "order": 25,
                   "title": "device",
                   "allowSearch": false,
                   "alignContent": "left",
@@ -1636,7 +1633,7 @@
                   "name": "issue_type",
                   "type": "string",
                   "displayAs": "string",
-                  "order": 100018,
+                  "order": 26,
                   "title": "issue_type",
                   "allowSearch": false,
                   "alignContent": "left",
@@ -1660,7 +1657,7 @@
           },
           "position": {
             "x": 0,
-            "y": 54,
+            "y": 58,
             "width": 12,
             "height": 8
           }
