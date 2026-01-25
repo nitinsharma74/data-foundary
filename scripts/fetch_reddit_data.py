@@ -1,7 +1,11 @@
-import requests
+import re
 import csv
-import time
 import json
+import time
+from typing import Any
+
+import numpy as np
+import requests
 from datetime import datetime, timedelta, timezone
 from transformers import pipeline
 from langchain_ollama import ChatOllama
@@ -16,16 +20,14 @@ DAYS_BACK = 60  # Number of days to look back for posts
 
 OUTPUT_FILE = f"reddit_crunchyroll_{DAYS_BACK}days.csv"
 
-REQUEST_DELAY = 3  # One request every 6 seconds to avoid rate limiting
+REQUEST_DELAY = 3  # Seconds between requests to avoid rate limiting
 
 # ========================================
-
-cutoff = (datetime.now(timezone.utc) - timedelta(days=DAYS_BACK)).timestamp()
 
 
 # ================= SAFE REQUEST =================
 
-def reddit_get(url, params=None):
+def reddit_get(url: str, params: dict[str, Any] | None = None) -> requests.Response:
     """Safely make a GET request to Reddit with rate limiting and error handling.
     
     Retries on 429 (rate limit) and other request exceptions.
@@ -63,7 +65,7 @@ def reddit_get(url, params=None):
 
 # ================= POSTS =================
 
-def fetch_posts(after=None):
+def fetch_posts(after: str | None = None) -> dict[str, Any]:
     """Fetch a batch of posts from the subreddit.
     
     Args:
@@ -80,11 +82,12 @@ def fetch_posts(after=None):
     return resp.json()
 
 
-def extract_recent_posts(data):
+def extract_recent_posts(data: dict[str, Any], cutoff: float) -> list[dict[str, Any]]:
     """Filter posts to only include those within the DAYS_BACK cutoff.
     
     Args:
         data: JSON response from Reddit API
+        cutoff: Unix timestamp cutoff for filtering posts
     
     Returns:
         List of posts created after the cutoff timestamp
@@ -99,7 +102,7 @@ def extract_recent_posts(data):
 
 # ================= COMMENTS =================
 
-def fetch_top_comments(permalink):
+def fetch_top_comments(permalink: str) -> list[dict[str, Any]]:
     """Fetch top 200 comments for a post, including nested replies.
     
     Args:
@@ -129,7 +132,7 @@ def fetch_top_comments(permalink):
     return parse_comments(children)
 
 
-def parse_comments(children):
+def parse_comments(children: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Recursively parse comment objects from Reddit API response.
     
     Args:
@@ -169,91 +172,124 @@ def parse_comments(children):
     return results
 
 
-def get_sentiment_bucket(score):
-    """Categorize sentiment score into positive, negative, or neutral.
-    
-    Args:
-        score: Sentiment score between -1 and 1
-    
-    Returns:
-        'positive' if score >= 0.05, 'negative' if score <= -0.05, else 'neutral'
-    """
-    if score >= 0.05:
+def get_sentiment_bucket(score: float) -> str:
+    if score >= 0.20:
         return "positive"
-    elif score <= -0.05:
+    elif score <= -0.20:
         return "negative"
     else:
         return "neutral"
 
 
+# ================= SENTIMENT SCORING =================
+
+LABEL_TO_SCORE = {
+    "very negative": -1.0,
+    "negative": -0.5,
+    "neutral": 0.0,
+    "positive": 0.5,
+    "very positive": 1.0
+}
+
+
+def score_text(sentiment_pipeline: Any, text: str) -> float:
+    """Score text using the sentiment pipeline with label mapping.
+    
+    Args:
+        sentiment_pipeline: The transformer sentiment analysis pipeline
+        text: Text to analyze
+    
+    Returns:
+        Sentiment score between -1 and 1
+    """
+    if not text or not text.strip():
+        return 0.0
+    result = sentiment_pipeline(text)[0]
+    label = result["label"].lower()
+    confidence = result["score"]
+    base = LABEL_TO_SCORE.get(label, 0.0)
+    return round(base * confidence, 4)
+
+
 # ================= CATEGORIZATION =================
 
-# Device patterns (simplified categories)
+# Device patterns (simplified - prioritize precision over recall)
 DEVICE_PATTERNS = {
-    # Mobile (iOS and Android)
     "Mobile": [
-        r"android(?!\s*tv)", r"android\s*phone", r"android\s*mobile",
-        r"pixel\s*\d+", r"pixel\s*pro", r"pixel\s*fold", r"google\s*pixel", r"\bpixel\b",
-        r"galaxy\s*s\d+", r"galaxy\s*a\d+", r"galaxy\s*note", r"galaxy\s*z", r"galaxy\s*fold", r"galaxy\s*flip", r"samsung\s*galaxy",
-        r"oneplus", r"xiaomi", r"redmi", r"poco", r"oppo", r"vivo", r"motorola", r"moto\s*g",
-        r"\bios\b", r"ipados",
-        r"iphone\s*\d+", r"iphone\s*pro", r"iphone\s*max", r"iphone\s*plus", r"iphone\s*se", r"iphone",
-        r"ipad\s*pro", r"ipad\s*air", r"ipad\s*mini", r"ipad",
-        r"mobile", r"phone",
+        r"iphone", r"ipad", r"\bios\b",
+        r"android(?!\s*tv)",
+        r"(on\s+my|the)\s+phone", r"(phone|mobile)\s+app",
     ],
     
-    # TV (Apple TV, Android TV)
     "TV": [
-        r"android\s*tv", r"androidtv",
-        r"nvidia\s*shield", r"shield\s*tv",
-        r"apple\s*tv\s*4k", r"apple\s*tv", r"tvos",
-        r"\btv\s*app\b",
+        # Streaming devices
+        r"apple\s*tv", r"android\s*tv", r"fire\s*tv", r"firestick",
+        r"roku", r"chromecast", r"google\s*tv",
+        r"smart\s*tv",
+        r"\btv\s+app\b",
     ],
     
-    # Smart TV (Fire TV, Chromecast/Google TV, LG, Samsung, Sony, etc.)
-    "Smart TV": [
-        r"fire\s*tv", r"firetv", r"fire\s*stick", r"firestick", r"amazon\s*fire",
-        r"chromecast", r"chrome\s*cast", r"google\s*tv",
-        r"lg\s*tv", r"webos",
-        r"samsung\s*tv", r"tizen",
-        r"sony\s*tv",
-        r"smart\s*tv", r"smarttv", r"vizio", r"hisense", r"tcl\s*tv", r"set\s*top\s*box",
-    ],
-    
-    # Roku
-    "Roku": [r"roku\s*ultra", r"roku\s*express", r"roku\s*streaming\s*stick", r"roku"],
-    
-    # Game Console
     "Game Console": [
-        r"ps5", r"ps4", r"playstation\s*5", r"playstation\s*4", r"playstation",
-        r"xbox\s*series", r"xbox\s*one", r"xbox",
-        r"nintendo\s*switch", r"switch",
+        r"ps[45]\b", r"playstation", r"xbox", r"nintendo\s*switch",
     ],
     
-    # Browser
-    "Browser": [
-        r"safari", r"\bchrome\b(?!\s*cast)", r"firefox", r"\bedge\b",
-        r"browser", r"web\s*player", r"webapp", r"website",
+    "Web": [
+        r"(chrome|firefox|safari)\s+browser",
+        r"\b(web|browser)\s+(app|player|version)\b",
+        r"\bwebsite\b", r"crunchyroll\.com",
+    ],
+    
+    "Desktop": [
+        r"windows\s+(app|10|11)", r"\bpc\s+app\b",
+        r"mac\s*(book|os)", r"desktop\s+app",
     ],
 }
 
-# Issue type patterns
+# Issue type patterns (simplified categories)
 ISSUE_TYPE_PATTERNS = {
-    "Billing": [r"billing", r"charged", r"charge", r"payment", r"refund", r"invoice", r"price", r"cost", r"fee"],
-    "Account": [r"account", r"login", r"log\s*in", r"password", r"sign\s*in", r"signin", r"logout", r"sign\s*out", r"profile", r"subscription", r"cancel", r"trial", r"premium", r"membership"],
-    "Content - Subs Text/Typo": [r"subtitle", r"subtitles", r"subs", r"typo", r"translation", r"translated", r"text\s*error", r"wrong\s*text", r"misspell", r"caption"],
-    "Content - Dubs": [r"\bdub\b", r"dubs", r"dubbing", r"dubbed", r"english\s*dub", r"japanese\s*dub", r"voice\s*actor", r"voice\s*over", r"audio\s*track"],
-    "Content - Video Artifacts": [r"artifact", r"glitch", r"pixelat", r"blocky", r"visual\s*bug", r"video\s*quality", r"blurry", r"fuzzy", r"distort"],
-    "Playback - Errors": [r"playback\s*error", r"error\s*code", r"won't\s*play", r"can't\s*play", r"cannot\s*play", r"not\s*playing", r"failed\s*to\s*play", r"video\s*error", r"stream\s*error"],
-    "Playback - Rebuffers": [r"buffer", r"buffering", r"rebuffer", r"loading", r"stuck", r"freeze", r"freezing", r"frozen", r"lag", r"lagging", r"slow"],
-    "Playback - Play Delay": [r"delay", r"latency", r"slow\s*start", r"takes\s*forever", r"long\s*load", r"won't\s*load"],
-    "Playback - Subs Rendering": [r"subs?\s*not\s*showing", r"subtitle\s*rendering", r"subs?\s*out\s*of\s*sync", r"subs?\s*sync", r"subtitle\s*delay", r"subs?\s*timing", r"subs?\s*missing", r"no\s*subtitles?"],
-    "UX/App - Crashes": [r"crash", r"crashing", r"crashed", r"force\s*close", r"app\s*closes", r"keeps\s*closing", r"shuts\s*down", r"not\s*responding"],
-    "UX/App - Malformed UI": [r"ui\s*bug", r"interface", r"layout", r"display\s*issue", r"button", r"menu", r"navigation", r"screen\s*issue", r"visual\s*glitch", r"broken\s*ui"],
+    "Billing": [
+        r"billing", r"charged", r"charge", r"payment", r"refund", r"invoice", r"price", r"cost", r"fee"
+    ],
+    "Account": [
+        r"account", r"login", r"log\s*in", r"password", r"sign\s*in", r"signin", r"logout", r"sign\s*out",
+        r"profile", r"subscription", r"cancel", r"trial", r"premium", r"membership"
+    ],
+    "Content - Subs & Dubs": [
+        # Subtitles/Text
+        r"subtitle", r"subtitles", r"subs", r"typo", r"translation", r"translated", r"text\s*error",
+        r"wrong\s*text", r"misspell", r"caption",
+        # Dubs/Audio
+        r"\bdub\b", r"dubs", r"dubbing", r"dubbed", r"english\s*dub", r"japanese\s*dub",
+        r"voice\s*actor", r"voice\s*over", r"audio\s*track",
+        # Video artifacts
+        r"artifact", r"glitch", r"pixelat", r"blocky", r"visual\s*bug", r"video\s*quality",
+        r"blurry", r"fuzzy", r"distort"
+    ],
+    "Playback": [
+        # Errors
+        r"playback\s*error", r"error\s*code", r"won't\s*play", r"can't\s*play", r"cannot\s*play",
+        r"not\s*playing", r"failed\s*to\s*play", r"video\s*error", r"stream\s*error",
+        # Rebuffers
+        r"buffer", r"buffering", r"rebuffer", r"loading", r"stuck", r"freeze", r"freezing",
+        r"frozen", r"lag", r"lagging", r"slow",
+        # Play delay
+        r"delay", r"latency", r"slow\s*start", r"takes\s*forever", r"long\s*load", r"won't\s*load",
+        # Subs rendering
+        r"subs?\s*not\s*showing", r"subtitle\s*rendering", r"subs?\s*out\s*of\s*sync", r"subs?\s*sync",
+        r"subtitle\s*delay", r"subs?\s*timing", r"subs?\s*missing", r"no\s*subtitles?"
+    ],
+    "UX/App": [
+        # Crashes
+        r"crash", r"crashing", r"crashed", r"force\s*close", r"app\s*closes", r"keeps\s*closing",
+        r"shuts\s*down", r"not\s*responding",
+        # UI issues
+        r"ui\s*bug", r"interface", r"layout", r"display\s*issue", r"button", r"menu",
+        r"navigation", r"screen\s*issue", r"visual\s*glitch", r"broken\s*ui"
+    ],
 }
 
 
-def categorize_text(text, patterns_dict):
+def categorize_text(text: str, patterns_dict: dict[str, list[str]]) -> list[str]:
     """Match text against pattern dictionary and return all matching categories.
     
     Args:
@@ -263,7 +299,6 @@ def categorize_text(text, patterns_dict):
     Returns:
         List of matching category names
     """
-    import re
     matches = []
     for category, patterns in patterns_dict.items():
         for pattern in patterns:
@@ -273,7 +308,7 @@ def categorize_text(text, patterns_dict):
     return matches
 
 
-def extract_categories(title, selftext):
+def extract_categories(title: str | None, selftext: str | None) -> dict[str, str]:
     """Extract device and issue type from post title and body.
     
     Args:
@@ -297,7 +332,18 @@ def extract_categories(title, selftext):
     }
 
 
-def flatten_comment_bodies(comments, bodies, limit):
+def flatten_comment_bodies(
+    comments: list[dict[str, Any]],
+    bodies: list[str],
+    limit: int
+) -> None:
+    """Recursively extract comment body text up to a limit.
+    
+    Args:
+        comments: List of comment dictionaries with nested replies
+        bodies: Output list to append comment bodies to (modified in-place)
+        limit: Maximum number of comment bodies to collect
+    """
     for comment in comments:
         if len(bodies) >= limit:
             return
@@ -308,7 +354,25 @@ def flatten_comment_bodies(comments, bodies, limit):
             flatten_comment_bodies(comment["replies"], bodies, limit)
 
 
-def summarize_post(llm, prompt, title, body, comments):
+def summarize_post(
+    llm: ChatOllama,
+    prompt: PromptTemplate,
+    title: str,
+    body: str,
+    comments: str
+) -> str:
+    """Generate an LLM summary of a Reddit post.
+    
+    Args:
+        llm: ChatOllama language model instance
+        prompt: Prompt template for summarization
+        title: Post title
+        body: Post body text
+        comments: Concatenated comment text
+    
+    Returns:
+        Summary string or empty string if no content
+    """
     if not (title or body or comments):
         return ""
 
@@ -323,15 +387,24 @@ def summarize_post(llm, prompt, title, body, comments):
 
 # ================= MAIN =================
 
-def main():
+def main() -> None:
+    """Main entry point for Reddit data fetching and analysis.
+    
+    Fetches posts from the configured subreddit, analyzes sentiment using a
+    transformer model, generates summaries with an LLM, and writes results to CSV.
     """
-    The sentiment-analysis pipeline uses a pretrained transformer-based text classification model 
-    (a neural network fine-tuned on labeled sentiment data) to process your text, 
-    outputting a label like POSITIVE or NEGATIVE with a confidence score.
-    """
-    sentiment_pipeline = pipeline("sentiment-analysis")
+    # Calculate cutoff timestamp for filtering posts
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=DAYS_BACK)).timestamp()
+    
+    # Initialize sentiment analysis pipeline
+    sentiment_pipeline = pipeline(
+        "sentiment-analysis",
+        model="spacesedan/reddit-sentiment-analysis-longformer",
+        max_length=4096,
+        truncation=True,
+    )
 
-    """Initialize LLM and prompt template for summarization."""
+    # Initialize LLM and prompt template for summarization
     llm = ChatOllama(
         model="llama3.2:1b",
         temperature=0.0,
@@ -366,7 +439,7 @@ def main():
         if not posts:
             break
 
-        all_posts.extend(extract_recent_posts(data))
+        all_posts.extend(extract_recent_posts(data, cutoff))
 
         oldest = posts[-1]["data"].get("created_utc", 0)
         if oldest < cutoff:
@@ -378,7 +451,7 @@ def main():
 
     print(f"Fetched {len(all_posts)} posts")
 
-    print("=== Fetching comments (VERY SLOW) ===")
+    print("=== Fetching comments ===")
 
     for i, post in enumerate(all_posts, 1):
         print(f"\nPost {i}/{len(all_posts)}: {post.get('title')}")
@@ -400,22 +473,26 @@ def main():
             print(f"Summary error: {exc}")
             post["post_summary"] = ""
         
-        # Combine title, selftext, and comments for sentiment analysis
-        sentiment_texts = []
+        # Score title and selftext
+        post_scores = []
         if post.get("title"):
-            sentiment_texts.append(f"[TITLE] {post['title']}")
+            post_scores.append(score_text(sentiment_pipeline, post["title"]))
         if post.get("selftext"):
-            sentiment_texts.append(f"[BODY] {post['selftext']}")
-        for comment_body in comment_bodies:
-            sentiment_texts.append(f"[COMMENT] {comment_body}")
+            post_scores.append(score_text(sentiment_pipeline, post["selftext"]))
         
-        # Transformer sentiment on post title, selftext, and comments
-        combined_text = " ".join(sentiment_texts)
-        if combined_text:
-            result = sentiment_pipeline(combined_text[:512])[0]
-            post["sentiment_score_transformer"] = round(
-                result["score"] if result["label"] == "POSITIVE" else -result["score"], 4
-            )
+        # Score comments (weighted at 0.3)
+        comment_scores = [score_text(sentiment_pipeline, c) for c in comment_bodies]
+        
+        # Calculate final score with weighted comment average
+        if post_scores or comment_scores:
+            final_score = np.mean([
+                *post_scores,
+                np.mean(comment_scores) * 0.3 if comment_scores else 0.0
+            ])
+            final_score = round(float(final_score), 4)
+            final_score = np.clip(final_score, -0.8, 0.8)
+            post["sentiment_score_transformer"] = float(final_score)
+            print(f"Final Score: {final_score}")
         else:
             post["sentiment_score_transformer"] = 0.0
         post["sentiment_bucket_transformer"] = get_sentiment_bucket(post["sentiment_score_transformer"])
