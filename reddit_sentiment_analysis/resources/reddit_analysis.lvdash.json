@@ -17,10 +17,6 @@
         "\n",
         "        CASE\n",
         "            WHEN link_flair_text IN ('Streaming | Technical Issue', 'Technical Issue')\n",
-        "                OR LOWER(title) LIKE '%bug%'\n",
-        "                OR LOWER(title) LIKE '%error%'\n",
-        "                OR LOWER(title) LIKE '%crash%'\n",
-        "                OR LOWER(title) LIKE '%issue%'\n",
         "                THEN 'Technical/Product'\n",
         "            WHEN link_flair_text IN ('Account/Membership', 'Manga', 'Dubs')\n",
         "                THEN 'Billing/Service'\n",
@@ -364,11 +360,14 @@
                       }
                     ]
                   }
+                },
+                "label": {
+                  "show": false
                 }
               },
               "frame": {
                 "showTitle": true,
-                "title": "Sentiment Mix Over Time"
+                "title": "Sentiments Over Time"
               }
             }
           },
@@ -428,7 +427,6 @@
                   "legend": {
                     "position": "bottom"
                   },
-                  "displayName": "Issue Category",
                   "scale": {
                     "type": "categorical"
                   }
@@ -564,6 +562,7 @@
                   "legend": {
                     "position": "bottom"
                   },
+                  "displayName": "Engagement Level",
                   "scale": {
                     "type": "categorical"
                   }
@@ -571,7 +570,9 @@
               },
               "frame": {
                 "showTitle": true,
-                "title": "Engagement Level Distribution"
+                "title": "Engagement Level Distribution",
+                "showDescription": true,
+                "description": "Engagement level is calculated using number of comments and score"
               }
             }
           },
@@ -579,7 +580,7 @@
             "x": 0,
             "y": 41,
             "width": 12,
-            "height": 5
+            "height": 6
           }
         },
         {
@@ -640,13 +641,15 @@
               },
               "frame": {
                 "showTitle": true,
-                "title": "Sentiment by Issue Category"
+                "title": "Sentiment by Issue Category",
+                "showDescription": true,
+                "description": "Issue Category Uses Link Flare Texts"
               }
             }
           },
           "position": {
             "x": 0,
-            "y": 46,
+            "y": 47,
             "width": 12,
             "height": 6
           }
@@ -760,7 +763,7 @@
           },
           "position": {
             "x": 0,
-            "y": 52,
+            "y": 53,
             "width": 12,
             "height": 6
           }
@@ -891,7 +894,9 @@
               },
               "frame": {
                 "showTitle": true,
-                "title": "Comments On Posts Per Day"
+                "title": "Comments On Posts Per Day",
+                "showDescription": true,
+                "description": "Shows comments associated with posts based on the date the post was published"
               }
             }
           },
@@ -1098,7 +1103,7 @@
                     "type": "complex",
                     "displayAs": "json",
                     "visible": true,
-                    "order": 21,
+                    "order": 20,
                     "title": "Comments",
                     "allowSearch": false,
                     "alignContent": "left",
@@ -1124,7 +1129,7 @@
                     "type": "string",
                     "displayAs": "string",
                     "visible": true,
-                    "order": 22,
+                    "order": 21,
                     "title": "permalink",
                     "allowSearch": false,
                     "alignContent": "left",
@@ -1533,7 +1538,7 @@
                   "name": "sentiment_score_transformer",
                   "type": "float",
                   "displayAs": "number",
-                  "order": 23,
+                  "order": 22,
                   "title": "sentiment_score_transformer",
                   "allowSearch": false,
                   "alignContent": "right",
@@ -1558,7 +1563,7 @@
                   "name": "sentiment_bucket_transformer",
                   "type": "string",
                   "displayAs": "string",
-                  "order": 24,
+                  "order": 23,
                   "title": "sentiment_bucket_transformer",
                   "allowSearch": false,
                   "alignContent": "left",
@@ -1583,7 +1588,7 @@
                   "name": "device",
                   "type": "string",
                   "displayAs": "string",
-                  "order": 25,
+                  "order": 24,
                   "title": "device",
                   "allowSearch": false,
                   "alignContent": "left",
@@ -1608,7 +1613,7 @@
                   "name": "issue_type",
                   "type": "string",
                   "displayAs": "string",
-                  "order": 26,
+                  "order": 25,
                   "title": "issue_type",
                   "allowSearch": false,
                   "alignContent": "left",
@@ -1619,7 +1624,7 @@
                 }
               ],
               "allowHTMLByDefault": false,
-              "itemsPerPage": 10,
+              "itemsPerPage": 15,
               "paginationSize": "default",
               "condensed": true,
               "withRowNumber": false,
@@ -1632,9 +1637,135 @@
           },
           "position": {
             "x": 0,
-            "y": 58,
+            "y": 65,
             "width": 12,
-            "height": 8
+            "height": 11
+          }
+        },
+        {
+          "widget": {
+            "name": "23f81967",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "b4a8461d",
+                  "fields": [
+                    {
+                      "name": "sentiment_bucket",
+                      "expression": "`sentiment_bucket`"
+                    },
+                    {
+                      "name": "title",
+                      "expression": "`title`"
+                    },
+                    {
+                      "name": "event_date",
+                      "expression": "`event_date`"
+                    },
+                    {
+                      "name": "sum(num_comments)",
+                      "expression": "SUM(`num_comments`)"
+                    },
+                    {
+                      "name": "sentiment_score_transformer",
+                      "expression": "`sentiment_score_transformer`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "scatter",
+              "encodings": {
+                "x": {
+                  "fieldName": "event_date",
+                  "displayName": "Date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "sentiment_score_transformer",
+                  "displayName": "Sentiment Score",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "sentiment_bucket",
+                  "legend": {
+                    "position": "bottom"
+                  },
+                  "displayName": "Sentiment",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "Negative",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 4
+                        }
+                      },
+                      {
+                        "value": "Positive",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 3
+                        }
+                      },
+                      {
+                        "value": "Neutral",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 2
+                        }
+                      }
+                    ]
+                  }
+                },
+                "size": {
+                  "fieldName": "sum(num_comments)",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 2
+                    },
+                    "significantFigures": {
+                      "type": "all"
+                    },
+                    "hideGroupSeparator": false
+                  },
+                  "displayName": "Comments"
+                },
+                "extra": [
+                  {
+                    "fieldName": "title"
+                  },
+                  {
+                    "fieldName": "event_date"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Sentiment Score Over Time"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 59,
+            "width": 12,
+            "height": 6
           }
         }
       ],
