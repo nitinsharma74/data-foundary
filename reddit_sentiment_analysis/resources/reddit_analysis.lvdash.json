@@ -925,6 +925,10 @@
                       "expression": "`title`"
                     },
                     {
+                      "name": "selftext",
+                      "expression": "`selftext`"
+                    },
+                    {
                       "name": "post_summary",
                       "expression": "`post_summary`"
                     },
@@ -1000,6 +1004,32 @@
                     "visible": true,
                     "order": 2,
                     "title": "Title",
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false
+                  },
+                  {
+                    "fieldName": "selftext",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 3,
+                    "title": "Post Body",
                     "allowSearch": false,
                     "alignContent": "left",
                     "allowHTML": false,
@@ -1159,31 +1189,6 @@
                   "displayAs": "string",
                   "order": 1,
                   "title": "id",
-                  "allowSearch": false,
-                  "alignContent": "left",
-                  "allowHTML": false,
-                  "highlightLinks": false,
-                  "useMonospaceFont": false,
-                  "preserveWhitespace": false
-                },
-                {
-                  "booleanValues": [
-                    "false",
-                    "true"
-                  ],
-                  "imageUrlTemplate": "{{ @ }}",
-                  "imageTitleTemplate": "{{ @ }}",
-                  "imageWidth": "",
-                  "imageHeight": "",
-                  "linkUrlTemplate": "{{ @ }}",
-                  "linkTextTemplate": "{{ @ }}",
-                  "linkTitleTemplate": "{{ @ }}",
-                  "linkOpenInNewTab": true,
-                  "name": "selftext",
-                  "type": "string",
-                  "displayAs": "string",
-                  "order": 3,
-                  "title": "selftext",
                   "allowSearch": false,
                   "alignContent": "left",
                   "allowHTML": false,
@@ -2006,7 +2011,7 @@
             "name": "self-text",
             "queries": [
               {
-                "name": "dashboards/01f0f24371e61159a1a8a7342e6b0f35/datasets/01f0f24371e614d8bc6b9a1cc84709c6_selftext",
+                "name": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0f56638b81749a2cb3316d1a59765_selftext",
                 "query": {
                   "datasetName": "b4a8461d",
                   "fields": [
@@ -2026,13 +2031,13 @@
                 "fields": [
                   {
                     "fieldName": "selftext",
-                    "queryName": "dashboards/01f0f24371e61159a1a8a7342e6b0f35/datasets/01f0f24371e614d8bc6b9a1cc84709c6_selftext"
+                    "queryName": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0f56638b81749a2cb3316d1a59765_selftext"
                   }
                 ]
               },
               "frame": {
                 "showTitle": true,
-                "title": "Self Text"
+                "title": "Post Body"
               }
             }
           },
