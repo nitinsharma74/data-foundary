@@ -26,9 +26,9 @@
         "        END AS issue_category,\n",
         "\n",
         "        CASE\n",
-        "            WHEN (num_comments + score) > 50 THEN '4-Viral'\n",
-        "            WHEN (num_comments + score) > 20 THEN '3-High'\n",
-        "            WHEN (num_comments + score) > 5  THEN '2-Medium'\n",
+        "            WHEN (num_comments + score) > 100 THEN '4-Viral'\n",
+        "            WHEN (num_comments + score) > 50 THEN '3-High'\n",
+        "            WHEN (num_comments + score) > 20  THEN '2-Medium'\n",
         "            ELSE '1-Low'\n",
         "        END AS engagement_level,\n",
         "\n",
@@ -2001,7 +2001,7 @@
           },
           "position": {
             "x": 0,
-            "y": 8,
+            "y": 10,
             "width": 1,
             "height": 2
           }
@@ -2043,7 +2043,7 @@
           },
           "position": {
             "x": 0,
-            "y": 10,
+            "y": 12,
             "width": 1,
             "height": 2
           }
