@@ -22,9 +22,6 @@ OUTPUT_FILE = f"reddit_crunchyroll_{DAYS_BACK}days.csv"
 
 REQUEST_DELAY = 3  # Seconds between requests to avoid rate limiting
 
-# ========================================
-
-
 # ================= SAFE REQUEST =================
 
 def reddit_get(url: str, params: dict[str, Any] | None = None) -> requests.Response:
@@ -412,19 +409,52 @@ def main() -> None:
         num_predict=256
     )
     
+
     prompt = PromptTemplate.from_template(
-        "Summarize this Reddit post and its comments in 2-3 sentences.\n\n"
-        "RULES:\n"
-        "- State the main topic or issue being discussed\n"
-        "- Note the overall community reaction (positive, negative, or mixed)\n"
-        "- Mention specific complaints or praises if repeated by multiple users\n"
-        "- Include relevant context: device (iOS/Android/TV/PC), app version, or feature mentioned\n"
-        "- Output ONLY the summary text, no labels or introductions\n"
-        "- Do not invent information not present in the content\n\n"
-        "Post title: {title}\n"
-        "Post body: {body}\n"
-        "Top comments:\n{comments}\n\n"
-        "Summary:"
+    """
+    You are summarizing a Reddit thread.
+
+    CRITICAL OUTPUT CONSTRAINTS (must follow):
+    - Output MUST contain ONLY the lines described in "Required format".
+    - Do NOT include any headings (e.g., "EXAMPLE", "RULES", "INPUT"), preambles, explanations, or quotes.
+    - Do NOT repeat the prompt, the rules, or the input.
+    - The first characters of your response MUST be: "Post summary:"
+
+    Required format (exactly):
+    Post summary: <1–2 sentences>
+    Comments:
+    - <bullet>
+    - <bullet>
+    (...)
+
+    Task:
+    1) Post summary:
+    - Summarize ONLY the Title + Selftext.
+    - State the core topic/complaint/question and key specifics ONLY if explicitly present.
+    - Do NOT use any information from comments.
+
+    2) Comments:
+    - Summarize what the comments discuss (themes), not individual commenters.
+    - Use short bullets; keep distinct themes separate.
+    - Aggregate repeats; use frequency words when helpful (Most/Many/Some/Few).
+    - Capture: confirmations, disagreements, advice/workarounds, requests for info, explanations, outcomes, sentiment (only if widespread).
+    - Ignore one-off jokes/sarcasm/pure reactions unless they reflect a common theme.
+    - Do NOT invent details.
+
+    Edge cases:
+    - If Selftext is empty/None, summarize using Title only.
+    - If there are no comments or comments are empty/None:
+    Comments:
+    - No comments provided.
+
+    INPUT (use only what is inside the tags):
+    <THREAD>
+    Title: {title}
+    Selftext: {body}
+    Comments:
+    {comments}
+    </THREAD>
+    """
     )
 
     all_posts = []
