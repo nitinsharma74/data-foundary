@@ -1,11 +1,12 @@
-import re
 import csv
 import json
 import time
-from typing import Any
+from enum import Enum
+from typing import Any, Optional
 
 import numpy as np
 import requests
+from pydantic import BaseModel, Field
 from datetime import datetime, timedelta, timezone
 from transformers import pipeline
 from langchain_ollama import ChatOllama
@@ -208,125 +209,130 @@ def score_text(sentiment_pipeline: Any, text: str) -> float:
     return round(base * confidence, 4)
 
 
-# ================= CATEGORIZATION =================
+# ================= CATEGORIZATION (LLM-based) =================
 
-# Device patterns (simplified - prioritize precision over recall)
-DEVICE_PATTERNS = {
-    "Mobile": [
-        r"iphone", r"ipad", r"\bios\b",
-        r"android(?!\s*tv)",
-        r"(on\s+my|the)\s+phone", r"(phone|mobile)\s+app",
-    ],
-    
-    "TV": [
-        # Streaming devices
-        r"apple\s*tv", r"android\s*tv", r"fire\s*tv", r"firestick",
-        r"roku", r"chromecast", r"google\s*tv",
-        r"smart\s*tv",
-        r"\btv\s+app\b",
-    ],
-    
-    "Game Console": [
-        r"ps[45]\b", r"playstation", r"xbox", r"nintendo\s*switch",
-    ],
-    
-    "Web": [
-        r"(chrome|firefox|safari)\s+browser",
-        r"\b(web|browser)\s+(app|player|version)\b",
-        r"\bwebsite\b", r"crunchyroll\.com",
-    ],
-    
-    "Desktop": [
-        r"windows\s+(app|10|11)", r"\bpc\s+app\b",
-        r"mac\s*(book|os)", r"desktop\s+app",
-    ],
-}
-
-# Issue type patterns (simplified categories)
-ISSUE_TYPE_PATTERNS = {
-    "Billing": [
-        r"billing", r"charged", r"charge", r"payment", r"refund", r"invoice", r"price", r"cost", r"fee"
-    ],
-    "Account": [
-        r"account", r"login", r"log\s*in", r"password", r"sign\s*in", r"signin", r"logout", r"sign\s*out",
-        r"profile", r"subscription", r"cancel", r"trial", r"premium", r"membership"
-    ],
-    "Content - Subs & Dubs": [
-        # Subtitles/Text
-        r"subtitle", r"subtitles", r"subs", r"typo", r"translation", r"translated", r"text\s*error",
-        r"wrong\s*text", r"misspell", r"caption",
-        # Dubs/Audio
-        r"\bdub\b", r"dubs", r"dubbing", r"dubbed", r"english\s*dub", r"japanese\s*dub",
-        r"voice\s*actor", r"voice\s*over", r"audio\s*track",
-        # Video artifacts
-        r"artifact", r"glitch", r"pixelat", r"blocky", r"visual\s*bug", r"video\s*quality",
-        r"blurry", r"fuzzy", r"distort"
-    ],
-    "Playback": [
-        # Errors
-        r"playback\s*error", r"error\s*code", r"won't\s*play", r"can't\s*play", r"cannot\s*play",
-        r"not\s*playing", r"failed\s*to\s*play", r"video\s*error", r"stream\s*error",
-        # Rebuffers
-        r"buffer", r"buffering", r"rebuffer", r"loading", r"stuck", r"freeze", r"freezing",
-        r"frozen", r"lag", r"lagging", r"slow",
-        # Play delay
-        r"delay", r"latency", r"slow\s*start", r"takes\s*forever", r"long\s*load", r"won't\s*load",
-        # Subs rendering
-        r"subs?\s*not\s*showing", r"subtitle\s*rendering", r"subs?\s*out\s*of\s*sync", r"subs?\s*sync",
-        r"subtitle\s*delay", r"subs?\s*timing", r"subs?\s*missing", r"no\s*subtitles?"
-    ],
-    "UX/App": [
-        # Crashes
-        r"crash", r"crashing", r"crashed", r"force\s*close", r"app\s*closes", r"keeps\s*closing",
-        r"shuts\s*down", r"not\s*responding",
-        # UI issues
-        r"ui\s*bug", r"interface", r"layout", r"display\s*issue", r"button", r"menu",
-        r"navigation", r"screen\s*issue", r"visual\s*glitch", r"broken\s*ui"
-    ],
-}
+class IssueCategory(str, Enum):
+    billing = "Billing"
+    account = "Account"
+    content = "Content"
+    playback = "Playback"
+    ux_app = "UX/App"
+    unknown = "Unknown"
 
 
-def categorize_text(text: str, patterns_dict: dict[str, list[str]]) -> list[str]:
-    """Match text against pattern dictionary and return all matching categories.
+class Platform(str, Enum):
+    android_mobile = "Android (Mobile)"
+    android_tv = "Android TV"
+    fire_tv = "Fire TV"
+    chromecast = "Chromecast"
+    game_console = "Game Console"
+    roku = "Roku"
+    smart_tv_stb = "Smart TV / STB (Tetsuo)"
+    browser_safari = "Browser (Safari)"
+    browser_non_safari = "Browser (Non-Safari)"
+    windows_app = "Windows App"
+    ios = "iOS"
+    tvos = "tvOS"
+    unknown = "Unknown"
+
+
+class RedditPostClassification(BaseModel):
+    issue_category: IssueCategory = Field(
+        description="The type of issue reported in the Reddit post. Use 'Unknown' if unclear."
+    )
+    platform: Platform = Field(
+        default=Platform.unknown,
+        description="The platform mentioned in the post. Use 'Unknown' if no device is mentioned."
+    )
+
+
+CLASSIFICATION_PROMPT = PromptTemplate(
+    input_variables=["post_text"],
+    template=(
+        "You are an expert at classifying Reddit posts about a streaming service.\n\n"
+        "Your task: Identify the PLATFORM (device) and ISSUE CATEGORY from the post.\n\n"
+        "═══════════════════════════════════════════════════════════════════\n"
+        "STEP 1: PLATFORM DETECTION (Think carefully!)\n"
+        "═══════════════════════════════════════════════════════════════════\n\n"
+        "You MUST identify the platform even if not explicitly stated. Use your knowledge:\n\n"
+        "GAME CONSOLE → PlayStation, PS3, PS4, PS5, Xbox, Xbox One, Xbox Series X/S, Nintendo Switch, Nintendo\n"
+        "iOS → iPhone (any model), iPad (any model), iOS, iPod Touch\n"
+        "tvOS → Apple TV, AppleTV\n"
+        "Android (Mobile) → Any Android phone including: Samsung Galaxy, Google Pixel, OnePlus, Xiaomi, Redmi, "
+        "Motorola/Moto (G5, G Power, Edge, etc.), Oppo, Vivo, Realme, Huawei, Honor, Nothing Phone, "
+        "Sony Xperia, LG phone, HTC, Nokia phone, Asus ROG Phone, ZTE, Poco, Android mobile\n"
+        "Android TV → Android TV, Google TV device, Sony Bravia (with Android), Nvidia Shield, Mi Box, "
+        "Hisense Android TV, Philips Android TV, TCL with Google TV\n"
+        "Fire TV → Fire TV, Fire TV Stick, Fire Stick, Firestick, Fire TV Cube, Amazon Fire TV, Fire TV 4K\n"
+        "Roku → Roku, Roku TV, Roku Stick, Roku Express, Roku Ultra, TCL Roku TV, Hisense Roku TV\n"
+        "Chromecast → Chromecast, Chromecast with Google TV, Google TV (dongle)\n"
+        "Smart TV / STB (Tetsuo) → LG TV (webOS), Samsung TV (Tizen), Vizio TV, TCL TV (non-Roku/non-Google), "
+        "Hisense TV (non-Android), Sony TV (non-Android), Panasonic TV, set-top box, cable box, STB\n"
+        "Browser (Safari) → Safari browser, Safari on Mac\n"
+        "Browser (Non-Safari) → Chrome, Firefox, Edge, Brave, Opera, Vivaldi, browser, website, web, "
+        "watching on computer, laptop, desktop, MacBook (if using browser), PC (if using browser)\n"
+        "Windows App → Windows app, PC app, Windows 10, Windows 11, Microsoft Store app, desktop app on Windows\n\n"
+        "REASONING RULES:\n"
+        "- If user mentions a phone model (e.g., 'Moto G5', 'Pixel 7', 'Galaxy S23') → likely Android (Mobile) or iOS\n"
+        "- If user mentions 'phone' or 'mobile' without specifics → infer from context or use Android (Mobile) as default\n"
+        "- If user mentions 'TV' without specifics → try to infer from other clues, otherwise Smart TV / STB (Tetsuo)\n"
+        "- If user mentions 'app' → determine which platform based on context (phone app, TV app, etc.)\n"
+        "- If user mentions 'streaming on my...' → identify the device\n"
+        "- If multiple platforms mentioned → pick the PRIMARY one the issue is about\n"
+        "- If truly NO device/platform can be inferred → Unknown\n\n"
+        "═══════════════════════════════════════════════════════════════════\n"
+        "STEP 2: ISSUE CATEGORY\n"
+        "═══════════════════════════════════════════════════════════════════\n\n"
+        "- Billing: payments, charges, refunds, subscriptions, pricing, renewal, free trial ended\n"
+        "- Account: login, signup, password, bans, profile, account linking, email verification, "
+        "can't access account, forgot password, account sharing\n"
+        "- Content: subtitle TEXT errors, typos in subs, dubbing quality, wrong translation, "
+        "missing dub, audio track issues, video artifacts/glitches in the content itself\n"
+        "- Playback: video won't play, buffering, loading, streaming errors, error codes, "
+        "playback quality, resolution issues, subtitle SYNC/timing issues, audio sync, "
+        "video freezing, can't stream, connection issues\n"
+        "- UX/App: app crashes, app not opening, UI bugs, navigation issues, missing features, "
+        "app update problems, download feature issues, watchlist issues, search not working\n"
+        "- Unknown: only if the issue truly does not fit any category above\n\n"
+        "═══════════════════════════════════════════════════════════════════\n"
+        "NOW CLASSIFY THIS POST:\n"
+        "═══════════════════════════════════════════════════════════════════\n"
+        "{post_text}"
+    )
+)
+
+
+def extract_categories(
+    classification_chain: Any,
+    title: str | None,
+    selftext: str | None
+) -> dict[str, str]:
+    """Extract device and issue type from post title and body using LLM.
     
     Args:
-        text: Text to search (lowercase)
-        patterns_dict: Dict of category -> list of regex patterns
-    
-    Returns:
-        List of matching category names
-    """
-    matches = []
-    for category, patterns in patterns_dict.items():
-        for pattern in patterns:
-            if re.search(pattern, text, re.IGNORECASE):
-                matches.append(category)
-                break  # Only add category once
-    return matches
-
-
-def extract_categories(title: str | None, selftext: str | None) -> dict[str, str]:
-    """Extract device and issue type from post title and body.
-    
-    Args:
+        classification_chain: The LLM chain for classification
         title: Post title
         selftext: Post body text
     
     Returns:
         Dict with device and issue_type fields
     """
-    combined_text = f"{title or ''} {selftext or ''}".lower()
+    combined_text = f"**title:** {title or ''}\n**body:** {selftext or ''}"
     
-    # Extract devices (platforms and specific devices)
-    devices = categorize_text(combined_text, DEVICE_PATTERNS)
+    print(f"Classifying post: {title[:50] if title else 'No title'}...")
     
-    # Extract issue types
-    issues = categorize_text(combined_text, ISSUE_TYPE_PATTERNS)
-    
-    return {
-        "device": ", ".join(devices) if devices else "",
-        "issue_type": ", ".join(issues) if issues else "",
-    }
+    try:
+        result = classification_chain.invoke({"post_text": combined_text})
+        return {
+            "device": result.platform.value if result.platform else "Unknown",
+            "issue_type": result.issue_category.value if result.issue_category else "Unknown",
+        }
+    except Exception as e:
+        print(f"Classification error: {e}")
+        return {
+            "device": "Unknown",
+            "issue_type": "Unknown",
+        }
 
 
 def flatten_comment_bodies(
@@ -409,6 +415,15 @@ def main() -> None:
         num_predict=256
     )
     
+    # Initialize LLM chain for classification (with structured output)
+    classification_llm = ChatOllama(
+        model="deepseek-r1:8b",
+        temperature=0.0,
+        reasoning=True,
+        num_predict=512
+    ).with_structured_output(RedditPostClassification)
+    
+    classification_chain = CLASSIFICATION_PROMPT | classification_llm
 
     prompt = PromptTemplate.from_template(
     """
@@ -527,8 +542,12 @@ def main() -> None:
             post["sentiment_score_transformer"] = 0.0
         post["sentiment_bucket_transformer"] = get_sentiment_bucket(post["sentiment_score_transformer"])
         
-        # Extract device and issue type categories
-        categories = extract_categories(post.get("title", ""), post.get("selftext", ""))
+        # Extract device and issue type categories using LLM
+        categories = extract_categories(
+            classification_chain,
+            post.get("title", ""),
+            post.get("selftext", "")
+        )
         post["device"] = categories["device"]
         post["issue_type"] = categories["issue_type"]
 

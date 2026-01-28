@@ -237,6 +237,10 @@
                   "datasetName": "b4a8461d",
                   "fields": [
                     {
+                      "name": "link_flair_text",
+                      "expression": "`link_flair_text`"
+                    },
+                    {
                       "name": "daily(event_date)",
                       "expression": "DATE_TRUNC(\"DAY\", `event_date`)"
                     },
@@ -267,6 +271,16 @@
                     "type": "quantitative"
                   }
                 },
+                "color": {
+                  "fieldName": "link_flair_text",
+                  "legend": {
+                    "title": "Link Flair Text",
+                    "position": "bottom"
+                  },
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
                 "label": {
                   "show": false
                 }
@@ -281,7 +295,7 @@
             "x": 0,
             "y": 9,
             "width": 12,
-            "height": 5
+            "height": 6
           }
         },
         {
@@ -367,15 +381,15 @@
               },
               "frame": {
                 "showTitle": true,
-                "title": "Sentiments Over Time"
+                "title": "Post Sentiments Over Time"
               }
             }
           },
           "position": {
             "x": 0,
-            "y": 24,
+            "y": 21,
             "width": 12,
-            "height": 5
+            "height": 6
           }
         },
         {
@@ -427,6 +441,7 @@
                   "legend": {
                     "position": "bottom"
                   },
+                  "displayName": "Issue Type",
                   "scale": {
                     "type": "categorical"
                   }
@@ -434,15 +449,17 @@
               },
               "frame": {
                 "showTitle": true,
-                "title": "Issue Category Trend"
+                "title": "Issue Category Trend",
+                "showDescription": true,
+                "description": "Calculated programatically using post body."
               }
             }
           },
           "position": {
             "x": 0,
-            "y": 29,
+            "y": 27,
             "width": 12,
-            "height": 6
+            "height": 7
           }
         },
         {
@@ -502,15 +519,17 @@
               },
               "frame": {
                 "showTitle": true,
-                "title": "Platform Mentions Over Time"
+                "title": "Platform Mentions Over Time",
+                "showDescription": true,
+                "description": "Calculated programatically using post body."
               }
             }
           },
           "position": {
             "x": 0,
-            "y": 35,
+            "y": 34,
             "width": 12,
-            "height": 6
+            "height": 7
           }
         },
         {
@@ -580,7 +599,7 @@
             "x": 0,
             "y": 41,
             "width": 12,
-            "height": 6
+            "height": 7
           }
         },
         {
@@ -649,9 +668,9 @@
           },
           "position": {
             "x": 0,
-            "y": 47,
+            "y": 48,
             "width": 12,
-            "height": 6
+            "height": 7
           }
         },
         {
@@ -763,80 +782,9 @@
           },
           "position": {
             "x": 0,
-            "y": 53,
+            "y": 55,
             "width": 12,
-            "height": 6
-          }
-        },
-        {
-          "widget": {
-            "name": "a2329d2a",
-            "queries": [
-              {
-                "name": "main_query",
-                "query": {
-                  "datasetName": "b4a8461d",
-                  "fields": [
-                    {
-                      "name": "link_flair_text",
-                      "expression": "`link_flair_text`"
-                    },
-                    {
-                      "name": "daily(event_date)",
-                      "expression": "DATE_TRUNC(\"DAY\", `event_date`)"
-                    },
-                    {
-                      "name": "count(*)",
-                      "expression": "COUNT(`*`)"
-                    }
-                  ],
-                  "disaggregated": false
-                }
-              }
-            ],
-            "spec": {
-              "version": 3,
-              "widgetType": "bar",
-              "encodings": {
-                "x": {
-                  "fieldName": "daily(event_date)",
-                  "displayName": "Date",
-                  "scale": {
-                    "type": "temporal"
-                  }
-                },
-                "y": {
-                  "fieldName": "count(*)",
-                  "displayName": "Posts",
-                  "scale": {
-                    "type": "quantitative"
-                  }
-                },
-                "color": {
-                  "fieldName": "link_flair_text",
-                  "legend": {
-                    "position": "bottom"
-                  },
-                  "displayName": "Link Flair Text",
-                  "scale": {
-                    "type": "categorical"
-                  }
-                },
-                "label": {
-                  "show": false
-                }
-              },
-              "frame": {
-                "showTitle": true,
-                "title": "Posts Per Day Per Link Flare"
-              }
-            }
-          },
-          "position": {
-            "x": 0,
-            "y": 19,
-            "width": 12,
-            "height": 5
+            "height": 7
           }
         },
         {
@@ -848,6 +796,10 @@
                 "query": {
                   "datasetName": "b4a8461d",
                   "fields": [
+                    {
+                      "name": "link_flair_text",
+                      "expression": "`link_flair_text`"
+                    },
                     {
                       "name": "count(*)",
                       "expression": "COUNT(`*`)"
@@ -883,6 +835,16 @@
                     "type": "quantitative"
                   }
                 },
+                "color": {
+                  "fieldName": "link_flair_text",
+                  "legend": {
+                    "title": "Link Flair Text",
+                    "position": "bottom"
+                  },
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
                 "label": {
                   "show": false
                 },
@@ -902,9 +864,9 @@
           },
           "position": {
             "x": 0,
-            "y": 14,
+            "y": 15,
             "width": 12,
-            "height": 5
+            "height": 6
           }
         },
         {
@@ -1642,7 +1604,7 @@
           },
           "position": {
             "x": 0,
-            "y": 65,
+            "y": 69,
             "width": 12,
             "height": 11
           }
@@ -1768,9 +1730,9 @@
           },
           "position": {
             "x": 0,
-            "y": 59,
+            "y": 62,
             "width": 12,
-            "height": 6
+            "height": 7
           }
         }
       ],
