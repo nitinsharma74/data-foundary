@@ -883,6 +883,10 @@
                       "expression": "`event_date`"
                     },
                     {
+                      "name": "id",
+                      "expression": "`id`"
+                    },
+                    {
                       "name": "title",
                       "expression": "`title`"
                     },
@@ -942,6 +946,32 @@
                     "title": "Date",
                     "allowSearch": false,
                     "alignContent": "right",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false
+                  },
+                  {
+                    "fieldName": "id",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 1,
+                    "title": "id",
+                    "allowSearch": false,
+                    "alignContent": "left",
                     "allowHTML": false,
                     "highlightLinks": false,
                     "useMonospaceFont": false,
@@ -1133,31 +1163,6 @@
                 ]
               },
               "invisibleColumns": [
-                {
-                  "booleanValues": [
-                    "false",
-                    "true"
-                  ],
-                  "imageUrlTemplate": "{{ @ }}",
-                  "imageTitleTemplate": "{{ @ }}",
-                  "imageWidth": "",
-                  "imageHeight": "",
-                  "linkUrlTemplate": "{{ @ }}",
-                  "linkTextTemplate": "{{ @ }}",
-                  "linkTitleTemplate": "{{ @ }}",
-                  "linkOpenInNewTab": true,
-                  "name": "id",
-                  "type": "string",
-                  "displayAs": "string",
-                  "order": 1,
-                  "title": "id",
-                  "allowSearch": false,
-                  "alignContent": "left",
-                  "allowHTML": false,
-                  "highlightLinks": false,
-                  "useMonospaceFont": false,
-                  "preserveWhitespace": false
-                },
                 {
                   "booleanValues": [
                     "false",
@@ -1595,7 +1600,7 @@
               "paginationSize": "default",
               "condensed": true,
               "withRowNumber": false,
-              "firstNFrozenColumns": 2,
+              "firstNFrozenColumns": 3,
               "frame": {
                 "showTitle": true,
                 "title": "Engagement vs Sentiment"
@@ -2006,6 +2011,60 @@
           "position": {
             "x": 0,
             "y": 12,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "reddit-post-id",
+            "queries": [
+              {
+                "name": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fcdab13d15558903c40eb0aeff53_id",
+                "query": {
+                  "datasetName": "b4a8461d",
+                  "fields": [
+                    {
+                      "name": "id",
+                      "expression": "`id`"
+                    },
+                    {
+                      "name": "id_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "id",
+                    "queryName": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fcdab13d15558903c40eb0aeff53_id"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Reddit Post ID"
+              },
+              "selection": {
+                "defaultSelection": {
+                  "operator": {
+                    "operator": "AND",
+                    "args": []
+                  }
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 14,
             "width": 1,
             "height": 2
           }
