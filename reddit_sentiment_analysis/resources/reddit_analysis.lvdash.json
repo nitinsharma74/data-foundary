@@ -316,8 +316,8 @@
                       "expression": "DATE_TRUNC(\"DAY\", `event_date`)"
                     },
                     {
-                      "name": "count(*)",
-                      "expression": "COUNT(`*`)"
+                      "name": "sum(num_comments)",
+                      "expression": "SUM(`num_comments`)"
                     }
                   ],
                   "disaggregated": false
@@ -336,8 +336,8 @@
                   }
                 },
                 "y": {
-                  "fieldName": "count(*)",
-                  "displayName": "Posts",
+                  "fieldName": "sum(num_comments)",
+                  "displayName": "Number of Comments",
                   "scale": {
                     "type": "quantitative"
                   }
@@ -410,8 +410,8 @@
                       "expression": "DATE_TRUNC(\"DAY\", `event_date`)"
                     },
                     {
-                      "name": "count(*)",
-                      "expression": "COUNT(`*`)"
+                      "name": "sum(num_comments)",
+                      "expression": "SUM(`num_comments`)"
                     }
                   ],
                   "disaggregated": false
@@ -430,8 +430,8 @@
                   }
                 },
                 "y": {
-                  "fieldName": "count(*)",
-                  "displayName": "Posts",
+                  "fieldName": "sum(num_comments)",
+                  "displayName": "Number of Comments",
                   "scale": {
                     "type": "quantitative"
                   }
@@ -459,7 +459,7 @@
             "x": 0,
             "y": 27,
             "width": 12,
-            "height": 7
+            "height": 6
           }
         },
         {
@@ -527,7 +527,7 @@
           },
           "position": {
             "x": 0,
-            "y": 34,
+            "y": 33,
             "width": 12,
             "height": 7
           }
@@ -597,7 +597,7 @@
           },
           "position": {
             "x": 0,
-            "y": 41,
+            "y": 40,
             "width": 12,
             "height": 7
           }
@@ -668,7 +668,7 @@
           },
           "position": {
             "x": 0,
-            "y": 48,
+            "y": 47,
             "width": 12,
             "height": 7
           }
@@ -782,7 +782,7 @@
           },
           "position": {
             "x": 0,
-            "y": 55,
+            "y": 54,
             "width": 12,
             "height": 7
           }
@@ -1604,7 +1604,7 @@
           },
           "position": {
             "x": 0,
-            "y": 69,
+            "y": 68,
             "width": 12,
             "height": 11
           }
@@ -1730,7 +1730,7 @@
           },
           "position": {
             "x": 0,
-            "y": 62,
+            "y": 61,
             "width": 12,
             "height": 7
           }
