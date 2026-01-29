@@ -266,7 +266,7 @@
                 },
                 "y": {
                   "fieldName": "count(*)",
-                  "displayName": "Posts",
+                  "displayName": "Number of Posts",
                   "scale": {
                     "type": "quantitative"
                   }
@@ -501,7 +501,7 @@
                 },
                 "y": {
                   "fieldName": "count(*)",
-                  "displayName": "Posts",
+                  "displayName": "Number of Posts",
                   "scale": {
                     "type": "quantitative"
                   }
@@ -571,7 +571,7 @@
                 },
                 "y": {
                   "fieldName": "count(*)",
-                  "displayName": "Posts",
+                  "displayName": "Number of Posts",
                   "scale": {
                     "type": "quantitative"
                   }
@@ -830,7 +830,7 @@
                 },
                 "y": {
                   "fieldName": "sum(num_comments)",
-                  "displayName": "Comments",
+                  "displayName": "Number of Comments",
                   "scale": {
                     "type": "quantitative"
                   }
