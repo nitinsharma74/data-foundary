@@ -217,6 +217,8 @@ class IssueCategory(str, Enum):
     content = "Content"
     playback = "Playback"
     ux_app = "UX/App"
+    licensing_catalog = "Licensing/Catalog"
+    general_discussion = "General Discussion"
     unknown = "Unknown"
 
 
@@ -247,7 +249,7 @@ class RedditPostClassification(BaseModel):
 
 
 CLASSIFICATION_PROMPT = PromptTemplate(
-    input_variables=["post_text"],
+    input_variables=["post_text", "comments_text"],
     template=(
         "You are an expert at classifying Reddit posts about a streaming service.\n\n"
         "Your task: Identify the PLATFORM (device) and ISSUE CATEGORY from the post.\n\n"
@@ -280,24 +282,36 @@ CLASSIFICATION_PROMPT = PromptTemplate(
         "- If user mentions 'streaming on my...' → identify the device\n"
         "- If multiple platforms mentioned → pick the PRIMARY one the issue is about\n"
         "- If truly NO device/platform can be inferred → Unknown\n\n"
+        "SCOPE CHECK (for Account vs UX/App):\n"
+        "- Read the comments carefully. If multiple commenters report experiencing the SAME issue, it's likely UX/App.\n"
+        "- If the problem seems unique to the poster's account with no others confirming, it's Account.\n"
+        "- Posts asking 'anyone else having this issue?' where comments confirm → UX/App.\n\n"
         "═══════════════════════════════════════════════════════════════════\n"
         "STEP 2: ISSUE CATEGORY\n"
         "═══════════════════════════════════════════════════════════════════\n\n"
         "- Billing: payments, charges, refunds, subscriptions, pricing, renewal, free trial ended\n"
-        "- Account: login, signup, password, bans, profile, account linking, email verification, "
-        "can't access account, forgot password, account sharing\n"
+        "- Account: Issues affecting the INDIVIDUAL USER'S ACCOUNT — login problems, password reset, "
+        "email verification, profile settings, account linking, bans, subscription status specific to their account. "
+        "Use this when the problem seems unique to the poster's account.\n"
         "- Content: subtitle TEXT errors, typos in subs, dubbing quality, wrong translation, "
         "missing dub, audio track issues, video artifacts/glitches in the content itself\n"
         "- Playback: video won't play, buffering, loading, streaming errors, error codes, "
         "playback quality, resolution issues, subtitle SYNC/timing issues, audio sync, "
         "video freezing, can't stream, connection issues\n"
-        "- UX/App: app crashes, app not opening, UI bugs, navigation issues, missing features, "
-        "app update problems, download feature issues, watchlist issues, search not working\n"
+        "- UX/App: Issues affecting MULTIPLE USERS or the app itself — app crashes, app not opening, "
+        "UI bugs, navigation issues, missing features, app update problems, download feature issues, "
+        "watchlist issues, search not working, widespread login outages. "
+        "If comments show others experiencing the same problem, classify as UX/App.\n"
+        "- Licensing/Catalog: show removed, region-locked, not available in library, missing episodes, "
+        "'when will X be added', simulcast schedule questions, content availability, geo-restrictions\n"
+        "- General Discussion: recommendations, opinions, polls, non-issue questions like 'do adults use Crunchyroll?', "
+        "comparisons to other services, general praise or complaints not tied to a specific issue\n"
         "- Unknown: only if the issue truly does not fit any category above\n\n"
         "═══════════════════════════════════════════════════════════════════\n"
         "NOW CLASSIFY THIS POST:\n"
         "═══════════════════════════════════════════════════════════════════\n"
-        "{post_text}"
+        "{post_text}\n\n"
+        "**comments:**\n{comments_text}"
     )
 )
 
@@ -305,14 +319,16 @@ CLASSIFICATION_PROMPT = PromptTemplate(
 def extract_categories(
     classification_chain: Any,
     title: str | None,
-    selftext: str | None
+    selftext: str | None,
+    comments_text: str | None = None
 ) -> dict[str, str]:
-    """Extract device and issue type from post title and body using LLM.
+    """Extract device and issue type from post title, body, and comments using LLM.
     
     Args:
         classification_chain: The LLM chain for classification
         title: Post title
         selftext: Post body text
+        comments_text: Concatenated comment text from the post
     
     Returns:
         Dict with device and issue_type fields
@@ -322,7 +338,10 @@ def extract_categories(
     print(f"Classifying post: {title[:50] if title else 'No title'}...")
     
     try:
-        result = classification_chain.invoke({"post_text": combined_text})
+        result = classification_chain.invoke({
+            "post_text": combined_text,
+            "comments_text": comments_text or "No comments available."
+        })
         return {
             "device": result.platform.value if result.platform else "Unknown",
             "issue_type": result.issue_category.value if result.issue_category else "Unknown",
@@ -419,7 +438,7 @@ def main() -> None:
     classification_llm = ChatOllama(
         model="deepseek-r1:8b",
         temperature=0.0,
-        reasoning=True,
+        reasoning=False,
         num_predict=512
     ).with_structured_output(RedditPostClassification)
     
@@ -504,7 +523,7 @@ def main() -> None:
         comments = fetch_top_comments(post["permalink"])
         post["comments"] = comments
         comment_bodies = []
-        flatten_comment_bodies(comments, comment_bodies, limit=20)
+        flatten_comment_bodies(comments, comment_bodies, limit=50)
         comments_text = "\n".join(comment_bodies)
         try:
             post["post_summary"] = summarize_post(
@@ -546,7 +565,8 @@ def main() -> None:
         categories = extract_categories(
             classification_chain,
             post.get("title", ""),
-            post.get("selftext", "")
+            post.get("selftext", ""),
+            comments_text
         )
         post["device"] = categories["device"]
         post["issue_type"] = categories["issue_type"]
