@@ -23,6 +23,8 @@ OUTPUT_FILE = f"reddit_crunchyroll_{DAYS_BACK}days.csv"
 
 REQUEST_DELAY = 3  # Seconds between requests to avoid rate limiting
 
+MAX_COMMENTS_PER_POST = 2000  # Maximum comments to fetch per post
+
 # ================= SAFE REQUEST =================
 
 def reddit_get(url: str, params: dict[str, Any] | None = None) -> requests.Response:
@@ -100,11 +102,68 @@ def extract_recent_posts(data: dict[str, Any], cutoff: float) -> list[dict[str, 
 
 # ================= COMMENTS =================
 
-def fetch_top_comments(permalink: str) -> list[dict[str, Any]]:
-    """Fetch top 200 comments for a post, including nested replies.
+def extract_post_id_from_permalink(permalink: str) -> str:
+    """Extract the post ID (t3_xxx format) from a permalink.
+    
+    Args:
+        permalink: Post permalink path (e.g., /r/subreddit/comments/abc123/title/)
+    
+    Returns:
+        Post fullname in t3_xxx format
+    """
+    parts = permalink.strip("/").split("/")
+    for i, part in enumerate(parts):
+        if part == "comments" and i + 1 < len(parts):
+            return f"t3_{parts[i + 1]}"
+    return ""
+
+
+def fetch_more_children(
+    link_id: str,
+    children_ids: list[str],
+    sort: str = "top"
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Fetch additional comments using /api/morechildren endpoint.
+    
+    Args:
+        link_id: Post fullname (e.g., t3_abc123)
+        children_ids: List of comment ID36s to fetch
+        sort: Sort order for comments
+    
+    Returns:
+        Tuple of (parsed comments, more objects for further fetching)
+    """
+    if not children_ids:
+        return [], []
+    
+    url = "https://www.reddit.com/api/morechildren.json"
+    params = {
+        "api_type": "json",
+        "link_id": link_id,
+        "children": ",".join(children_ids[:100]),  # API limit of 100 per request
+        "sort": sort,
+        "limit_children": "false",
+    }
+    
+    try:
+        resp = reddit_get(url, params=params)
+        data = resp.json()
+        things = data.get("json", {}).get("data", {}).get("things", [])
+        return parse_comments_with_more(things)
+    except Exception as e:
+        print(f"Error fetching more children: {e}")
+        return [], []
+
+
+def fetch_top_comments(
+    permalink: str,
+    target_count: int = MAX_COMMENTS_PER_POST
+) -> list[dict[str, Any]]:
+    """Fetch up to target_count comments for a post, including nested replies.
     
     Args:
         permalink: Post permalink path (e.g., /r/subreddit/comments/id/title/)
+        target_count: Maximum number of comments to fetch (default: MAX_COMMENTS_PER_POST)
     
     Returns:
         List of parsed comment dictionaries with nested replies
@@ -112,7 +171,8 @@ def fetch_top_comments(permalink: str) -> list[dict[str, Any]]:
     url = f"https://www.reddit.com{permalink}.json"
     params = {
         "sort": "top",
-        "limit": 200
+        "limit": 500,  # Request more initially
+        "depth": 20,   # Get deeper nesting
     }
 
     resp = reddit_get(url, params=params)
@@ -127,7 +187,108 @@ def fetch_top_comments(permalink: str) -> list[dict[str, Any]]:
         print("Reddit returned empty comments")
         return []
 
-    return parse_comments(children)
+    # Parse initial comments and collect "more" objects
+    comments, more_objects = parse_comments_with_more(children)
+    
+    # Extract post ID for morechildren API calls
+    post_id = extract_post_id_from_permalink(permalink)
+    
+    if not post_id:
+        print(f"Could not extract post ID from permalink: {permalink}")
+        return comments
+    
+    # Count total comments (including nested)
+    def count_comments(comment_list: list[dict[str, Any]]) -> int:
+        total = 0
+        for c in comment_list:
+            total += 1
+            if c.get("replies"):
+                total += count_comments(c["replies"])
+        return total
+    
+    total_fetched = count_comments(comments)
+    print(f"  Initial fetch: {total_fetched} comments, {len(more_objects)} 'more' stubs")
+    
+    # Fetch additional comments from "more" objects until we hit target
+    iterations = 0
+    max_iterations = 50  # Safety limit to prevent infinite loops
+    
+    while total_fetched < target_count and more_objects and iterations < max_iterations:
+        iterations += 1
+        more_obj = more_objects.pop(0)
+        more_children_ids = more_obj.get("data", {}).get("children", [])
+        
+        if not more_children_ids:
+            continue
+        
+        # Fetch in batches of 100 (API limit)
+        for i in range(0, len(more_children_ids), 100):
+            if total_fetched >= target_count:
+                break
+                
+            batch = more_children_ids[i:i + 100]
+            additional, new_more = fetch_more_children(post_id, batch, sort="top")
+            
+            comments.extend(additional)
+            more_objects.extend(new_more)
+            
+            batch_count = count_comments(additional)
+            total_fetched += batch_count
+            
+            if batch_count > 0:
+                print(f"  Fetched {batch_count} more comments (total: {total_fetched})")
+    
+    print(f"  Final comment count: {total_fetched}")
+    return comments
+
+
+def parse_comments_with_more(
+    children: list[dict[str, Any]]
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Recursively parse comment objects and collect 'more' stubs for later fetching.
+    
+    Args:
+        children: List of comment objects from Reddit API
+    
+    Returns:
+        Tuple of (parsed comments, 'more' objects for additional fetching)
+    """
+    results = []
+    more_objects = []
+
+    for child in children:
+        kind = child.get("kind")
+        
+        if kind == "t1":
+            d = child["data"]
+            # Remove AutoModerator comments
+            if d.get("author") != "AutoModerator":
+                comment = {
+                    "id": d.get("id"),
+                    "author": d.get("author"),
+                    "body": d.get("body"),
+                    "score": d.get("score"),
+                    "created_utc": datetime.fromtimestamp(
+                        d.get("created_utc", 0), timezone.utc
+                    ).isoformat() if d.get("created_utc") else None,
+                    "replies": []
+                }
+
+                replies = d.get("replies")
+                if isinstance(replies, dict):
+                    nested_comments, nested_more = parse_comments_with_more(
+                        replies.get("data", {}).get("children", [])
+                    )
+                    comment["replies"] = nested_comments
+                    more_objects.extend(nested_more)
+
+                results.append(comment)
+                
+        elif kind == "more":
+            # Collect "more" stubs for later fetching
+            more_objects.append(child)
+
+    return results, more_objects
 
 
 def parse_comments(children: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -139,35 +300,8 @@ def parse_comments(children: list[dict[str, Any]]) -> list[dict[str, Any]]:
     Returns:
         List of comment dictionaries with id, author, body, score, timestamp, and nested replies
     """
-    results = []
-
-    for child in children:
-        if child.get("kind") != "t1":
-            continue
-
-        d = child["data"]
-        # Remove AutoModerator comments
-        if d.get("author") != "AutoModerator":
-            comment = {
-                "id": d.get("id"),
-                "author": d.get("author"),
-                "body": d.get("body"),
-                "score": d.get("score"),
-                "created_utc": datetime.fromtimestamp(
-                    d.get("created_utc", 0), timezone.utc
-                ).isoformat() if d.get("created_utc") else None,
-                "replies": []
-            }
-
-            replies = d.get("replies")
-            if isinstance(replies, dict):
-                comment["replies"] = parse_comments(
-                    replies.get("data", {}).get("children", [])
-                )
-
-            results.append(comment)
-
-    return results
+    comments, _ = parse_comments_with_more(children)
+    return comments
 
 
 def get_sentiment_bucket(score: float) -> str:
@@ -218,6 +352,7 @@ class IssueCategory(str, Enum):
     playback = "Playback"
     ux_app = "UX/App"
     licensing_catalog = "Licensing/Catalog"
+    announcements = "Announcements"
     general_discussion = "General Discussion"
     unknown = "Unknown"
 
@@ -235,6 +370,7 @@ class Platform(str, Enum):
     windows_app = "Windows App"
     ios = "iOS"
     tvos = "tvOS"
+    multiple_devices = "Multiple Devices"
     unknown = "Unknown"
 
 
@@ -257,7 +393,8 @@ CLASSIFICATION_PROMPT = PromptTemplate(
         "STEP 1: PLATFORM DETECTION (Think carefully!)\n"
         "═══════════════════════════════════════════════════════════════════\n\n"
         "You MUST identify the platform even if not explicitly stated. Use your knowledge:\n\n"
-        "GAME CONSOLE → PlayStation, PS3, PS4, PS5, Xbox, Xbox One, Xbox Series X/S, Nintendo Switch, Nintendo\n"
+        "GAME CONSOLE → PlayStation, PS3, PS4, PS5, Xbox, Xbox One, Xbox Series X/S, Nintendo Switch, Nintendo, "
+        "console (generic mention without brand)\n"
         "iOS → iPhone (any model), iPad (any model), iOS, iPod Touch\n"
         "tvOS → Apple TV, AppleTV\n"
         "Android (Mobile) → Any Android phone including: Samsung Galaxy, Google Pixel, OnePlus, Xiaomi, Redmi, "
@@ -270,17 +407,23 @@ CLASSIFICATION_PROMPT = PromptTemplate(
         "Chromecast → Chromecast, Chromecast with Google TV, Google TV (dongle)\n"
         "Smart TV / STB (Tetsuo) → LG TV (webOS), Samsung TV (Tizen), Vizio TV, TCL TV (non-Roku/non-Google), "
         "Hisense TV (non-Android), Sony TV (non-Android), Panasonic TV, set-top box, cable box, STB\n"
-        "Browser (Safari) → Safari browser, Safari on Mac\n"
+        "Browser (Safari) → Safari browser, Safari on Mac, Mac/MacBook if Safari is mentioned\n"
         "Browser (Non-Safari) → Chrome, Firefox, Edge, Brave, Opera, Vivaldi, browser, website, web, "
-        "watching on computer, laptop, desktop, MacBook (if using browser), PC (if using browser)\n"
-        "Windows App → Windows app, PC app, Windows 10, Windows 11, Microsoft Store app, desktop app on Windows\n\n"
+        "watching on computer, laptop, desktop, PC, MacBook (if using non-Safari browser or browser unspecified)\n"
+        "Windows App → Windows app, PC app, Windows 10, Windows 11, Microsoft Store app, desktop app on Windows\n"
+        "Multiple Devices → Use ONLY when the SAME issue affects 2+ different device types "
+        "(e.g., 'broken on both my phone and TV', 'not working on any of my devices', 'same issue on mobile and Roku')\n\n"
         "REASONING RULES:\n"
         "- If user mentions a phone model (e.g., 'Moto G5', 'Pixel 7', 'Galaxy S23') → likely Android (Mobile) or iOS\n"
         "- If user mentions 'phone' or 'mobile' without specifics → infer from context or use Android (Mobile) as default\n"
         "- If user mentions 'TV' without specifics → try to infer from other clues, otherwise Smart TV / STB (Tetsuo)\n"
+        "- If user mentions 'PC', 'computer', 'laptop', 'desktop' → Browser (Non-Safari) unless they specify Windows app\n"
+        "- If user mentions 'console' without brand → Game Console\n"
+        "- If user mentions 'Mac' or 'MacBook' without browser specified → Browser (Non-Safari)\n"
         "- If user mentions 'app' → determine which platform based on context (phone app, TV app, etc.)\n"
         "- If user mentions 'streaming on my...' → identify the device\n"
-        "- If multiple platforms mentioned → pick the PRIMARY one the issue is about\n"
+        "- If user says 'works on X but not Y' → classify as Y (the device WITH the issue), NOT Multiple Devices\n"
+        "- If user says 'broken on both X and Y' or 'same issue on X and Y' → Multiple Devices\n"
         "- If truly NO device/platform can be inferred → Unknown\n\n"
         "SCOPE CHECK (for Account vs UX/App):\n"
         "- Read the comments carefully. If multiple commenters report experiencing the SAME issue, it's likely UX/App.\n"
@@ -293,20 +436,29 @@ CLASSIFICATION_PROMPT = PromptTemplate(
         "- Account: Issues affecting the INDIVIDUAL USER'S ACCOUNT — login problems, password reset, "
         "email verification, profile settings, account linking, bans, subscription status specific to their account. "
         "Use this when the problem seems unique to the poster's account.\n"
-        "- Content: subtitle TEXT errors, typos in subs, dubbing quality, wrong translation, "
-        "missing dub, audio track issues, video artifacts/glitches in the content itself\n"
-        "- Playback: video won't play, buffering, loading, streaming errors, error codes, "
-        "playback quality, resolution issues, subtitle SYNC/timing issues, audio sync, "
-        "video freezing, can't stream, connection issues\n"
+        "- Content: SOURCE MATERIAL QUALITY issues only — subtitle TEXT errors (typos, wrong translation, "
+        "missing words), dub script/voice acting quality complaints, video encoding artifacts baked into the source\n"
+        "- Playback: TECHNICAL DELIVERY issues — video won't play, buffering, loading, streaming errors, "
+        "error codes, resolution issues, subtitle NOT DISPLAYING, subtitle SYNC/timing issues, audio sync, "
+        "wrong audio track playing (e.g., Japanese audio instead of selected English dub), video freezing, "
+        "can't stream, connection issues, subtitles not working (technical failure)\n"
         "- UX/App: Issues affecting MULTIPLE USERS or the app itself — app crashes, app not opening, "
         "UI bugs, navigation issues, missing features, app update problems, download feature issues, "
-        "watchlist issues, search not working, widespread login outages. "
+        "watchlist issues, search not working, widespread login outages, "
+        "skip button issues (wrong timing, not appearing, skip intro/outro complaints), "
+        "service outages ('Is it down?', 500 errors, site/app not loading), server errors. "
         "If comments show others experiencing the same problem, classify as UX/App.\n"
         "- Licensing/Catalog: show removed, region-locked, not available in library, missing episodes, "
         "'when will X be added', simulcast schedule questions, content availability, geo-restrictions\n"
+        "- Announcements: official news, new feature launches (e.g., Crunchyroll Arc), service changes "
+        "(e.g., ad-supported tier discontinued), pricing tier updates, new partnerships, platform expansions, "
+        "major app updates, dub release date announcements, simulcast schedule announcements\n"
         "- General Discussion: recommendations, opinions, polls, non-issue questions like 'do adults use Crunchyroll?', "
         "comparisons to other services, general praise or complaints not tied to a specific issue\n"
         "- Unknown: only if the issue truly does not fit any category above\n\n"
+        "DECISION RULE - Content vs Playback:\n"
+        "If the issue is about WHAT subtitles/audio SAY (quality, translation errors) → Content.\n"
+        "If subtitles/audio don't appear, are out of sync, or wrong track plays → Playback.\n\n"
         "═══════════════════════════════════════════════════════════════════\n"
         "NOW CLASSIFY THIS POST:\n"
         "═══════════════════════════════════════════════════════════════════\n"
@@ -523,7 +675,7 @@ def main() -> None:
         comments = fetch_top_comments(post["permalink"])
         post["comments"] = comments
         comment_bodies = []
-        flatten_comment_bodies(comments, comment_bodies, limit=50)
+        flatten_comment_bodies(comments, comment_bodies, limit=MAX_COMMENTS_PER_POST)
         comments_text = "\n".join(comment_bodies)
         try:
             post["post_summary"] = summarize_post(
