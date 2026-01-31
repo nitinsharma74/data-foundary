@@ -429,6 +429,10 @@
                       "expression": "`sentiment_bucket`"
                     },
                     {
+                      "name": "title",
+                      "expression": "`title`"
+                    },
+                    {
                       "name": "engagement_score",
                       "expression": "`engagement_score`"
                     },
@@ -487,7 +491,13 @@
                   "scale": {
                     "type": "quantitative"
                   }
-                }
+                },
+                "extra": [
+                  {
+                    "fieldName": "title",
+                    "displayName": "Title"
+                  }
+                ]
               },
               "frame": {
                 "showTitle": true,
@@ -516,6 +526,10 @@
                     {
                       "name": "sentiment_bucket",
                       "expression": "`sentiment_bucket`"
+                    },
+                    {
+                      "name": "title",
+                      "expression": "`title`"
                     },
                     {
                       "name": "engagement_score",
@@ -576,7 +590,13 @@
                   "scale": {
                     "type": "quantitative"
                   }
-                }
+                },
+                "extra": [
+                  {
+                    "fieldName": "title",
+                    "displayName": "Title"
+                  }
+                ]
               },
               "frame": {
                 "showTitle": true,
