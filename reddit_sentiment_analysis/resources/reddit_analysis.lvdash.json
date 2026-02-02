@@ -1756,6 +1756,13 @@
                           "themeColorType": "visualizationColors",
                           "position": 3
                         }
+                      },
+                      {
+                        "value": "Negative",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 4
+                        }
                       }
                     ]
                   }
@@ -1789,7 +1796,7 @@
               "lines": [
                 "# Reddit Post Comments\n",
                 "\n",
-                "#### Please note that comments data is sampled."
+                "*Please note that comment data for posts with a high comment count is sampled.*"
               ]
             }
           },
