@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import html
 import json
 import logging
 import re
@@ -22,7 +21,7 @@ from pyspark.sql.types import (
 
 logger = logging.getLogger(__name__)
 
-FIXTURE_FILENAME = "reddit_crunchyroll_60days.csv"
+FIXTURE_FILENAME_PATTERN = re.compile(r"reddit_crunchyroll_\d+days\.csv")
 DATABRICKS_WORKSPACE_PREFIX = "/Workspace/"
 TABLE_NAME_PATTERN = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_.]*$")
 
@@ -69,7 +68,8 @@ def _fixture_path() -> Path:
     """Locate the fixture CSV file by searching candidate directories.
 
     Searches from the script's directory and current working directory,
-    looking for a 'fixtures' subdirectory containing the fixture file.
+    looking for a 'fixtures' subdirectory containing a file matching
+    the pattern reddit_crunchyroll_{days}days.csv.
 
     Returns:
         Path to the fixture file.
@@ -87,14 +87,17 @@ def _fixture_path() -> Path:
     searched = []
     for root in candidate_roots:
         for parent in [root, *root.parents]:
-            candidate = parent / "fixtures" / FIXTURE_FILENAME
-            searched.append(candidate)
-            if candidate.exists():
-                return candidate
+            fixtures_dir = parent / "fixtures"
+            searched.append(fixtures_dir)
+            if fixtures_dir.exists() and fixtures_dir.is_dir():
+                for candidate in fixtures_dir.iterdir():
+                    if candidate.is_file() and FIXTURE_FILENAME_PATTERN.match(candidate.name):
+                        return candidate
 
     searched_paths = "\n".join(str(path) for path in searched)
     raise FileNotFoundError(
-        f"Unable to find fixture file. Paths tried:\n{searched_paths}"
+        f"Unable to find fixture file matching pattern '{FIXTURE_FILENAME_PATTERN.pattern}'. "
+        f"Directories searched:\n{searched_paths}"
     )
 
 
@@ -120,30 +123,41 @@ def _load_fixture_dataframe(spark: SparkSession) -> DataFrame:
     return spark.read.csv(str(fixture_path), header=True, schema=SCHEMA)
 
 
-def _unescape_and_strip(value: str | None) -> str | None:
-    """Unescape HTML entities and strip whitespace from a string.
+def _unescape_html(col: F.Column) -> F.Column:
+    """Unescape common HTML entities and strip whitespace using native Spark functions.
+
+    Replaces common HTML entities with their character equivalents:
+    - &amp; -> &
+    - &lt; -> <
+    - &gt; -> >
+    - &quot; -> "
+    - &#39; or &apos; -> '
+    - &nbsp; -> space
 
     Args:
-        value: Input string or None.
+        col: Spark Column containing text with HTML entities.
 
     Returns:
-        Cleaned string or None if input was None.
+        Column with HTML entities replaced and whitespace trimmed.
     """
-    if value is None:
-        return None
-    return html.unescape(value).strip()
-
-
-# Lazy UDF initialization to avoid issues when pyspark is not available
-_unescape_udf = None
-
-
-def _get_unescape_udf():
-    """Get or create the unescape UDF (lazy initialization for serverless compatibility)."""
-    global _unescape_udf
-    if _unescape_udf is None:
-        _unescape_udf = F.udf(_unescape_and_strip, StringType())
-    return _unescape_udf
+    return F.trim(
+        F.regexp_replace(
+            F.regexp_replace(
+                F.regexp_replace(
+                    F.regexp_replace(
+                        F.regexp_replace(
+                            F.regexp_replace(col, "&amp;", "&"),
+                            "&lt;", "<"
+                        ),
+                        "&gt;", ">"
+                    ),
+                    "&quot;", '"'
+                ),
+                "&#39;|&apos;", "'"
+            ),
+            "&nbsp;", " "
+        )
+    )
 
 
 def _flatten_comments(
@@ -196,15 +210,8 @@ def _extract_comments_dataframe(spark: SparkSession, posts_df: DataFrame) -> Dat
         F.col("comments").isNotNull() & (F.trim(F.col("comments")) != "")
     )
 
-    total_posts = posts_df.count()
-    posts_with_comments_count = posts_with_comments.count()
-    skipped_count = total_posts - posts_with_comments_count
-    if skipped_count > 0:
-        logger.info(
-            f"Skipping {skipped_count} posts with no comments (out of {total_posts} total posts)"
-        )
-
-    if posts_with_comments_count == 0:
+    # Check if empty using limit(1) instead of count() for efficiency
+    if posts_with_comments.limit(1).count() == 0:
         logger.info("No comments found to extract")
         return spark.createDataFrame([], schema=COMMENTS_SCHEMA)
 
@@ -253,7 +260,7 @@ def _extract_comments_dataframe(spark: SparkSession, posts_df: DataFrame) -> Dat
         F.col("post_id"),
         F.col("parent_id"),
         F.trim(F.col("author")).alias("author"),
-        _get_unescape_udf()(F.col("body")).alias("body"),
+        _unescape_html(F.col("body")).alias("body"),
         F.col("score").cast("long").alias("score"),
         F.to_timestamp(F.col("created_utc")).alias("created_utc"),
     )
@@ -278,8 +285,76 @@ def _validate_table_name(table_name: str) -> None:
         )
 
 
+def _merge_or_create_table(
+    spark: SparkSession, df: DataFrame, table_name: str, merge_key: str
+) -> int:
+    """Create a new Delta table or merge data into an existing one.
+
+    If the table does not exist, creates it with the DataFrame data.
+    If the table exists, performs an upsert (MERGE) operation:
+    - Rows with matching keys are updated with new values
+    - New rows are inserted
+    - Existing rows not in the source are retained
+
+    Schema evolution is not allowed - mismatched schemas will cause an error.
+
+    Args:
+        spark: Active SparkSession.
+        df: DataFrame containing the data to write.
+        table_name: Name of the target Delta table.
+        merge_key: Column name to use as the merge key (e.g., 'id', 'comment_id').
+
+    Returns:
+        Number of rows processed from the source DataFrame.
+
+    Raises:
+        AnalysisException: If schema mismatch occurs during merge.
+    """
+    _validate_table_name(table_name)
+
+    if not spark.catalog.tableExists(table_name):
+        logger.info(f"Creating new table {table_name}")
+        (
+            df.write.format("delta")
+            .mode("overwrite")
+            .saveAsTable(table_name)
+        )
+        # Get row count from the newly created table
+        row_count = spark.table(table_name).count()
+        logger.info(f"Created table {table_name} with {row_count} rows")
+    else:
+        logger.info(f"Merging data into existing table {table_name}")
+        # Use unique temp view name to avoid conflicts in concurrent scenarios
+        temp_view_name = f"_source_data_{table_name.replace('.', '_')}"
+        df.createOrReplaceTempView(temp_view_name)
+
+        # Execute MERGE INTO statement
+        merge_sql = f"""
+            MERGE INTO {table_name} AS target
+            USING {temp_view_name} AS source
+            ON target.{merge_key} = source.{merge_key}
+            WHEN MATCHED THEN UPDATE SET *
+            WHEN NOT MATCHED THEN INSERT *
+        """
+        try:
+            spark.sql(merge_sql)
+            # Get row count after merge from source view (already materialized)
+            row_count = spark.table(temp_view_name).count()
+            logger.info(f"Merge completed for table {table_name} with {row_count} source rows")
+        finally:
+            # Clean up temp view
+            spark.catalog.dropTempView(temp_view_name)
+            logger.debug(f"Dropped temp view {temp_view_name}")
+
+    return row_count
+
+
 def _write_comments_table(spark: SparkSession, comments_df: DataFrame, table_name: str) -> int:
-    """Write comments DataFrame to Delta table.
+    """Write comments DataFrame to Delta table using upsert.
+
+    Creates the table if it doesn't exist, or merges data into the existing table.
+    Rows with matching comment_id are updated, new rows are inserted,
+    and existing rows not in the source are retained.
 
     Args:
         spark: Active SparkSession.
@@ -287,19 +362,10 @@ def _write_comments_table(spark: SparkSession, comments_df: DataFrame, table_nam
         table_name: Name of the target Delta table.
 
     Returns:
-        Number of rows written.
+        Number of rows processed.
     """
-    _validate_table_name(table_name)
-    row_count = comments_df.count()
-    logger.info(f"Writing {row_count} comments to table={table_name}")
-    spark.sql(f"DROP TABLE IF EXISTS {table_name}")
-    (
-        comments_df.write.format("delta")
-        .mode("overwrite")
-        .option("overwriteSchema", "true")
-        .saveAsTable(table_name)
-    )
-    return row_count
+    logger.info(f"Processing comments for table={table_name}")
+    return _merge_or_create_table(spark, comments_df, table_name, "comment_id")
 
 
 def _clean_reddit_dataframe(df: DataFrame) -> DataFrame:
@@ -321,8 +387,8 @@ def _clean_reddit_dataframe(df: DataFrame) -> DataFrame:
 
     cleaned = df.select(
         F.col("id"),
-        _get_unescape_udf()(F.col("title")).alias("title"),
-        _get_unescape_udf()(F.col("selftext")).alias("selftext"),
+        _unescape_html(F.col("title")).alias("title"),
+        _unescape_html(F.col("selftext")).alias("selftext"),
         _trim_or_null("author").alias("author"),
         F.col("ups").cast("long").alias("ups"),
         F.col("downs").cast("long").alias("downs"),
@@ -359,7 +425,6 @@ def _clean_reddit_dataframe(df: DataFrame) -> DataFrame:
 
     cleaned = cleaned.filter(F.col("id").isNotNull())
     cleaned = cleaned.dropDuplicates(["id"])
-    cleaned = cleaned.select(*SCHEMA.fieldNames())
     return cleaned
 
 
@@ -387,15 +452,8 @@ def get_reddit_data(table_name: str) -> tuple[int, int]:
     df = _load_fixture_dataframe(spark)
     cleaned_df = _clean_reddit_dataframe(df)
 
-    post_count = cleaned_df.count()
-    logger.info(f"Writing {post_count} cleaned rows to table={table_name}")
-    spark.sql(f"DROP TABLE IF EXISTS {table_name}")
-    (
-        cleaned_df.write.format("delta")
-        .mode("overwrite")
-        .option("overwriteSchema", "true")
-        .saveAsTable(table_name)
-    )
+    logger.info(f"Processing posts for table={table_name}")
+    post_count = _merge_or_create_table(spark, cleaned_df, table_name, "id")
 
     comments_df = _extract_comments_dataframe(spark, cleaned_df)
     comment_count = _write_comments_table(spark, comments_df, comments_table_name)
