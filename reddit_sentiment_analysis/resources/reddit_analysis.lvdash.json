@@ -97,13 +97,21 @@
         "      WHEN p.sentiment_score_transformer < -0.05 THEN 'Negative'\n",
         "      ELSE 'Neutral'\n",
         "  END AS sentiment_bucket,\n",
+        "  CASE\n",
+        "      WHEN (p.num_comments + p.score) > 250 THEN '4-Viral'\n",
+        "      WHEN (p.num_comments + p.score) > 100 THEN '3-High'\n",
+        "      WHEN (p.num_comments + p.score) > 50  THEN '2-Medium'\n",
+        "      ELSE '1-Low'\n",
+        "  END AS engagement_level,\n",
+        "  p.issue_type as issue_type,\n",
+        "  p.device as device,\n",
         "  p.sentiment_score_transformer as sentiment_score,\n",
         "  date(p.created_utc) as post_date,\n",
         "  c.comment_id as comment_id,\n",
         "  c.body as comment_body,\n",
         "  c.parent_id as comment_parent_id,\n",
         "  date(c.created_utc) as comment_date,\n",
-        "  hour(c.created_utc) as comment_hour\n",
+        "  c.created_utc as comment_created_utc\n",
         "FROM prod_reddit_data_comments c\n",
         "LEFT JOIN prod_reddit_data p\n",
         "ON p.id = c.post_id\n",
@@ -121,7 +129,7 @@
             "name": "event-date",
             "queries": [
               {
-                "name": "dashboards/01f0f2423ca3171682e26242e33d04ea/datasets/01f0f2423ca31a9980f0d7c357eefd44_event_date",
+                "name": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fe9c30cd15b8bcd9fd724c35f792_event_date",
                 "query": {
                   "datasetName": "b4a8461d",
                   "fields": [
@@ -136,6 +144,23 @@
                   ],
                   "disaggregated": false
                 }
+              },
+              {
+                "name": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fea1b1b21ad3800786c48383e9d4_post_date",
+                "query": {
+                  "datasetName": "02895e41",
+                  "fields": [
+                    {
+                      "name": "post_date",
+                      "expression": "`post_date`"
+                    },
+                    {
+                      "name": "post_date_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
               }
             ],
             "spec": {
@@ -145,7 +170,11 @@
                 "fields": [
                   {
                     "fieldName": "event_date",
-                    "queryName": "dashboards/01f0f2423ca3171682e26242e33d04ea/datasets/01f0f2423ca31a9980f0d7c357eefd44_event_date"
+                    "queryName": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fe9c30cd15b8bcd9fd724c35f792_event_date"
+                  },
+                  {
+                    "fieldName": "post_date",
+                    "queryName": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fea1b1b21ad3800786c48383e9d4_post_date"
                   }
                 ]
               },
@@ -167,9 +196,26 @@
             "name": "sentiment-bucket",
             "queries": [
               {
-                "name": "dashboards/01f0f2423ca3171682e26242e33d04ea/datasets/01f0f2423ca31a9980f0d7c357eefd44_sentiment_bucket",
+                "name": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fe9c30cd15b8bcd9fd724c35f792_sentiment_bucket",
                 "query": {
                   "datasetName": "b4a8461d",
+                  "fields": [
+                    {
+                      "name": "sentiment_bucket",
+                      "expression": "`sentiment_bucket`"
+                    },
+                    {
+                      "name": "sentiment_bucket_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fea1b1b21ad3800786c48383e9d4_sentiment_bucket",
+                "query": {
+                  "datasetName": "02895e41",
                   "fields": [
                     {
                       "name": "sentiment_bucket",
@@ -191,7 +237,11 @@
                 "fields": [
                   {
                     "fieldName": "sentiment_bucket",
-                    "queryName": "dashboards/01f0f2423ca3171682e26242e33d04ea/datasets/01f0f2423ca31a9980f0d7c357eefd44_sentiment_bucket"
+                    "queryName": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fe9c30cd15b8bcd9fd724c35f792_sentiment_bucket"
+                  },
+                  {
+                    "fieldName": "sentiment_bucket",
+                    "queryName": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fea1b1b21ad3800786c48383e9d4_sentiment_bucket"
                   }
                 ]
               },
@@ -210,58 +260,29 @@
         },
         {
           "widget": {
-            "name": "link-flair",
+            "name": "engagement-level",
             "queries": [
               {
-                "name": "dashboards/01f0f2423ca3171682e26242e33d04ea/datasets/01f0f2423ca31a9980f0d7c357eefd44_link_flair_text",
+                "name": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fe9c30cd15b8bcd9fd724c35f792_engagement_level",
                 "query": {
                   "datasetName": "b4a8461d",
                   "fields": [
                     {
-                      "name": "link_flair_text",
-                      "expression": "`link_flair_text`"
+                      "name": "engagement_level",
+                      "expression": "`engagement_level`"
                     },
                     {
-                      "name": "link_flair_text_associativity",
+                      "name": "engagement_level_associativity",
                       "expression": "COUNT_IF(`associative_filter_predicate_group`)"
                     }
                   ],
                   "disaggregated": false
                 }
-              }
-            ],
-            "spec": {
-              "version": 2,
-              "widgetType": "filter-multi-select",
-              "encodings": {
-                "fields": [
-                  {
-                    "fieldName": "link_flair_text",
-                    "queryName": "dashboards/01f0f2423ca3171682e26242e33d04ea/datasets/01f0f2423ca31a9980f0d7c357eefd44_link_flair_text"
-                  }
-                ]
               },
-              "frame": {
-                "showTitle": true,
-                "title": "Link Flair"
-              }
-            }
-          },
-          "position": {
-            "x": 0,
-            "y": 4,
-            "width": 1,
-            "height": 2
-          }
-        },
-        {
-          "widget": {
-            "name": "engagement-level",
-            "queries": [
               {
-                "name": "dashboards/01f0f2423ca3171682e26242e33d04ea/datasets/01f0f2423ca31a9980f0d7c357eefd44_engagement_level",
+                "name": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fea1b1b21ad3800786c48383e9d4_engagement_level",
                 "query": {
-                  "datasetName": "b4a8461d",
+                  "datasetName": "02895e41",
                   "fields": [
                     {
                       "name": "engagement_level",
@@ -283,7 +304,11 @@
                 "fields": [
                   {
                     "fieldName": "engagement_level",
-                    "queryName": "dashboards/01f0f2423ca3171682e26242e33d04ea/datasets/01f0f2423ca31a9980f0d7c357eefd44_engagement_level"
+                    "queryName": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fe9c30cd15b8bcd9fd724c35f792_engagement_level"
+                  },
+                  {
+                    "fieldName": "engagement_level",
+                    "queryName": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fea1b1b21ad3800786c48383e9d4_engagement_level"
                   }
                 ]
               },
@@ -305,13 +330,26 @@
             "name": "title",
             "queries": [
               {
-                "name": "dashboards/01f0f24371e61159a1a8a7342e6b0f35/datasets/01f0f24371e614d8bc6b9a1cc84709c6_title",
+                "name": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fe9c30cd15b8bcd9fd724c35f792_title",
                 "query": {
                   "datasetName": "b4a8461d",
                   "fields": [
                     {
                       "name": "title",
                       "expression": "`title`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fea1b1b21ad3800786c48383e9d4_post_title",
+                "query": {
+                  "datasetName": "02895e41",
+                  "fields": [
+                    {
+                      "name": "post_title",
+                      "expression": "`post_title`"
                     }
                   ],
                   "disaggregated": false
@@ -325,7 +363,11 @@
                 "fields": [
                   {
                     "fieldName": "title",
-                    "queryName": "dashboards/01f0f24371e61159a1a8a7342e6b0f35/datasets/01f0f24371e614d8bc6b9a1cc84709c6_title"
+                    "queryName": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fe9c30cd15b8bcd9fd724c35f792_title"
+                  },
+                  {
+                    "fieldName": "post_title",
+                    "queryName": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fea1b1b21ad3800786c48383e9d4_post_title"
                   }
                 ]
               },
@@ -347,13 +389,26 @@
             "name": "self-text",
             "queries": [
               {
-                "name": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0f56638b81749a2cb3316d1a59765_selftext",
+                "name": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fe9c30cd15b8bcd9fd724c35f792_selftext",
                 "query": {
                   "datasetName": "b4a8461d",
                   "fields": [
                     {
                       "name": "selftext",
                       "expression": "`selftext`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fea1b1b21ad3800786c48383e9d4_post_text",
+                "query": {
+                  "datasetName": "02895e41",
+                  "fields": [
+                    {
+                      "name": "post_text",
+                      "expression": "`post_text`"
                     }
                   ],
                   "disaggregated": false
@@ -367,7 +422,11 @@
                 "fields": [
                   {
                     "fieldName": "selftext",
-                    "queryName": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0f56638b81749a2cb3316d1a59765_selftext"
+                    "queryName": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fe9c30cd15b8bcd9fd724c35f792_selftext"
+                  },
+                  {
+                    "fieldName": "post_text",
+                    "queryName": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fea1b1b21ad3800786c48383e9d4_post_text"
                   }
                 ]
               },
@@ -389,7 +448,7 @@
             "name": "reddit-post-id",
             "queries": [
               {
-                "name": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fcdab13d15558903c40eb0aeff53_id",
+                "name": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fe9c30cd15b8bcd9fd724c35f792_id",
                 "query": {
                   "datasetName": "b4a8461d",
                   "fields": [
@@ -404,6 +463,23 @@
                   ],
                   "disaggregated": false
                 }
+              },
+              {
+                "name": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fea1b1b21ad3800786c48383e9d4_post_id",
+                "query": {
+                  "datasetName": "02895e41",
+                  "fields": [
+                    {
+                      "name": "post_id",
+                      "expression": "`post_id`"
+                    },
+                    {
+                      "name": "post_id_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
               }
             ],
             "spec": {
@@ -413,7 +489,11 @@
                 "fields": [
                   {
                     "fieldName": "id",
-                    "queryName": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fcdab13d15558903c40eb0aeff53_id"
+                    "queryName": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fe9c30cd15b8bcd9fd724c35f792_id"
+                  },
+                  {
+                    "fieldName": "post_id",
+                    "queryName": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fea1b1b21ad3800786c48383e9d4_post_id"
                   }
                 ]
               },
@@ -1822,6 +1902,10 @@
                   "datasetName": "02895e41",
                   "fields": [
                     {
+                      "name": "issue_type",
+                      "expression": "`issue_type`"
+                    },
+                    {
                       "name": "daily(comment_date)",
                       "expression": "DATE_TRUNC(\"DAY\", `comment_date`)"
                     },
@@ -1850,6 +1934,16 @@
                   "displayName": "Number of Comments",
                   "scale": {
                     "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "issue_type",
+                  "legend": {
+                    "position": "bottom"
+                  },
+                  "displayName": "Issue Type",
+                  "scale": {
+                    "type": "categorical"
                   }
                 }
               },
@@ -1886,6 +1980,10 @@
                     {
                       "name": "post_title",
                       "expression": "`post_title`"
+                    },
+                    {
+                      "name": "post_text",
+                      "expression": "`post_text`"
                     }
                   ],
                   "disaggregated": true
@@ -1975,6 +2073,32 @@
                     "highlightLinks": false,
                     "useMonospaceFont": false,
                     "preserveWhitespace": false
+                  },
+                  {
+                    "fieldName": "post_text",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 5,
+                    "title": "Post Text",
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false
                   }
                 ]
               },
@@ -2023,31 +2147,6 @@
                   "displayAs": "string",
                   "order": 3,
                   "title": "post_id",
-                  "allowSearch": false,
-                  "alignContent": "left",
-                  "allowHTML": false,
-                  "highlightLinks": false,
-                  "useMonospaceFont": false,
-                  "preserveWhitespace": false
-                },
-                {
-                  "booleanValues": [
-                    "false",
-                    "true"
-                  ],
-                  "imageUrlTemplate": "{{ @ }}",
-                  "imageTitleTemplate": "{{ @ }}",
-                  "imageWidth": "",
-                  "imageHeight": "",
-                  "linkUrlTemplate": "{{ @ }}",
-                  "linkTextTemplate": "{{ @ }}",
-                  "linkTitleTemplate": "{{ @ }}",
-                  "linkOpenInNewTab": true,
-                  "name": "post_text",
-                  "type": "string",
-                  "displayAs": "string",
-                  "order": 5,
-                  "title": "post_text",
                   "allowSearch": false,
                   "alignContent": "left",
                   "allowHTML": false,
@@ -2284,6 +2383,81 @@
                   "highlightLinks": false,
                   "useMonospaceFont": false,
                   "preserveWhitespace": false
+                },
+                {
+                  "booleanValues": [
+                    "false",
+                    "true"
+                  ],
+                  "imageUrlTemplate": "{{ @ }}",
+                  "imageTitleTemplate": "{{ @ }}",
+                  "imageWidth": "",
+                  "imageHeight": "",
+                  "linkUrlTemplate": "{{ @ }}",
+                  "linkTextTemplate": "{{ @ }}",
+                  "linkTitleTemplate": "{{ @ }}",
+                  "linkOpenInNewTab": true,
+                  "name": "engagement_level",
+                  "type": "string",
+                  "displayAs": "string",
+                  "order": 15,
+                  "title": "engagement_level",
+                  "allowSearch": false,
+                  "alignContent": "left",
+                  "allowHTML": false,
+                  "highlightLinks": false,
+                  "useMonospaceFont": false,
+                  "preserveWhitespace": false
+                },
+                {
+                  "booleanValues": [
+                    "false",
+                    "true"
+                  ],
+                  "imageUrlTemplate": "{{ @ }}",
+                  "imageTitleTemplate": "{{ @ }}",
+                  "imageWidth": "",
+                  "imageHeight": "",
+                  "linkUrlTemplate": "{{ @ }}",
+                  "linkTextTemplate": "{{ @ }}",
+                  "linkTitleTemplate": "{{ @ }}",
+                  "linkOpenInNewTab": true,
+                  "name": "issue_type",
+                  "type": "string",
+                  "displayAs": "string",
+                  "order": 16,
+                  "title": "issue_type",
+                  "allowSearch": false,
+                  "alignContent": "left",
+                  "allowHTML": false,
+                  "highlightLinks": false,
+                  "useMonospaceFont": false,
+                  "preserveWhitespace": false
+                },
+                {
+                  "booleanValues": [
+                    "false",
+                    "true"
+                  ],
+                  "imageUrlTemplate": "{{ @ }}",
+                  "imageTitleTemplate": "{{ @ }}",
+                  "imageWidth": "",
+                  "imageHeight": "",
+                  "linkUrlTemplate": "{{ @ }}",
+                  "linkTextTemplate": "{{ @ }}",
+                  "linkTitleTemplate": "{{ @ }}",
+                  "linkOpenInNewTab": true,
+                  "name": "device",
+                  "type": "string",
+                  "displayAs": "string",
+                  "order": 17,
+                  "title": "device",
+                  "allowSearch": false,
+                  "alignContent": "left",
+                  "allowHTML": false,
+                  "highlightLinks": false,
+                  "useMonospaceFont": false,
+                  "preserveWhitespace": false
                 }
               ],
               "allowHTMLByDefault": false,
@@ -2303,6 +2477,60 @@
             "y": 14,
             "width": 6,
             "height": 8
+          }
+        },
+        {
+          "widget": {
+            "name": "9dfc8559",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "02895e41",
+                  "fields": [
+                    {
+                      "name": "hourly(comment_created_utc)",
+                      "expression": "DATE_TRUNC(\"HOUR\", `comment_created_utc`)"
+                    },
+                    {
+                      "name": "countdistinct(comment_id)",
+                      "expression": "COUNT(DISTINCT `comment_id`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "hourly(comment_created_utc)",
+                  "displayName": "Date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "countdistinct(comment_id)",
+                  "displayName": "Number of Comments",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Comments Per Hour"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 14,
+            "width": 6,
+            "height": 6
           }
         }
       ],
