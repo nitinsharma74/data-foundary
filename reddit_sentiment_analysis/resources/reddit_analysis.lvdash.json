@@ -2104,32 +2104,6 @@
               },
               "invisibleColumns": [
                 {
-                  "numberFormat": "0",
-                  "booleanValues": [
-                    "false",
-                    "true"
-                  ],
-                  "imageUrlTemplate": "{{ @ }}",
-                  "imageTitleTemplate": "{{ @ }}",
-                  "imageWidth": "",
-                  "imageHeight": "",
-                  "linkUrlTemplate": "{{ @ }}",
-                  "linkTextTemplate": "{{ @ }}",
-                  "linkTitleTemplate": "{{ @ }}",
-                  "linkOpenInNewTab": true,
-                  "name": "comment_hour",
-                  "type": "integer",
-                  "displayAs": "number",
-                  "order": 1,
-                  "title": "comment_hour",
-                  "allowSearch": false,
-                  "alignContent": "right",
-                  "allowHTML": false,
-                  "highlightLinks": false,
-                  "useMonospaceFont": false,
-                  "preserveWhitespace": false
-                },
-                {
                   "booleanValues": [
                     "false",
                     "true"
@@ -2454,6 +2428,32 @@
                   "title": "device",
                   "allowSearch": false,
                   "alignContent": "left",
+                  "allowHTML": false,
+                  "highlightLinks": false,
+                  "useMonospaceFont": false,
+                  "preserveWhitespace": false
+                },
+                {
+                  "dateTimeFormat": "DD/MM/YYYY HH:mm:ss.SSS",
+                  "booleanValues": [
+                    "false",
+                    "true"
+                  ],
+                  "imageUrlTemplate": "{{ @ }}",
+                  "imageTitleTemplate": "{{ @ }}",
+                  "imageWidth": "",
+                  "imageHeight": "",
+                  "linkUrlTemplate": "{{ @ }}",
+                  "linkTextTemplate": "{{ @ }}",
+                  "linkTitleTemplate": "{{ @ }}",
+                  "linkOpenInNewTab": true,
+                  "name": "comment_created_utc",
+                  "type": "datetime",
+                  "displayAs": "datetime",
+                  "order": 100017,
+                  "title": "comment_created_utc",
+                  "allowSearch": false,
+                  "alignContent": "right",
                   "allowHTML": false,
                   "highlightLinks": false,
                   "useMonospaceFont": false,
