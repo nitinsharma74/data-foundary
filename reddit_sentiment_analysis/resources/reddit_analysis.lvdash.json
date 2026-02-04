@@ -320,7 +320,7 @@
           },
           "position": {
             "x": 0,
-            "y": 6,
+            "y": 4,
             "width": 1,
             "height": 2
           }
@@ -514,6 +514,140 @@
           "position": {
             "x": 0,
             "y": 14,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "issue-type",
+            "queries": [
+              {
+                "name": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fe9c30cd15b8bcd9fd724c35f792_issue_type",
+                "query": {
+                  "datasetName": "b4a8461d",
+                  "fields": [
+                    {
+                      "name": "issue_type",
+                      "expression": "`issue_type`"
+                    },
+                    {
+                      "name": "issue_type_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fea1b1b21ad3800786c48383e9d4_issue_type",
+                "query": {
+                  "datasetName": "02895e41",
+                  "fields": [
+                    {
+                      "name": "issue_type",
+                      "expression": "`issue_type`"
+                    },
+                    {
+                      "name": "issue_type_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "issue_type",
+                    "queryName": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fe9c30cd15b8bcd9fd724c35f792_issue_type"
+                  },
+                  {
+                    "fieldName": "issue_type",
+                    "queryName": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fea1b1b21ad3800786c48383e9d4_issue_type"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Issue Type"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 8,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "engagement-score",
+            "queries": [
+              {
+                "name": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fe9c30cd15b8bcd9fd724c35f792_engagement_score",
+                "query": {
+                  "datasetName": "b4a8461d",
+                  "fields": [
+                    {
+                      "name": "min(engagement_score)",
+                      "expression": "MIN(`engagement_score`)"
+                    },
+                    {
+                      "name": "max(engagement_score)",
+                      "expression": "MAX(`engagement_score`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fea1b1b21ad3800786c48383e9d4_post_engagement",
+                "query": {
+                  "datasetName": "02895e41",
+                  "fields": [
+                    {
+                      "name": "min(post_engagement)",
+                      "expression": "MIN(`post_engagement`)"
+                    },
+                    {
+                      "name": "max(post_engagement)",
+                      "expression": "MAX(`post_engagement`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "range-slider",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "engagement_score",
+                    "queryName": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fe9c30cd15b8bcd9fd724c35f792_engagement_score"
+                  },
+                  {
+                    "fieldName": "post_engagement",
+                    "queryName": "dashboards/01f0f269fa771a65a00b4145443c401e/datasets/01f0fea1b1b21ad3800786c48383e9d4_post_engagement"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Engagement Score"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 6,
             "width": 1,
             "height": 2
           }
