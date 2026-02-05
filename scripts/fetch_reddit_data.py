@@ -17,7 +17,7 @@ from langchain_core.prompts import PromptTemplate
 SUBREDDIT = "crunchyroll"
 POSTS_URL = f"https://www.reddit.com/r/{SUBREDDIT}/new.json"
 
-DAYS_BACK = 60  # Number of days to look back for posts
+DAYS_BACK = 5  # Number of days to look back for posts
 
 OUTPUT_FILE = f"reddit_crunchyroll_{DAYS_BACK}days.csv"
 
@@ -374,136 +374,186 @@ class Platform(str, Enum):
     unknown = "Unknown"
 
 
-class RedditPostClassification(BaseModel):
+class IssueCategoryResult(BaseModel):
+    """Result model for issue category classification."""
     issue_category: IssueCategory = Field(
         description="The type of issue reported in the Reddit post. Use 'Unknown' if unclear."
     )
+
+
+class PlatformResult(BaseModel):
+    """Result model for platform detection."""
     platform: Platform = Field(
         default=Platform.unknown,
         description="The platform mentioned in the post. Use 'Unknown' if no device is mentioned."
     )
 
 
-CLASSIFICATION_PROMPT = PromptTemplate(
+# Flair to category mapping (used as high-priority hint, LLM confirms)
+FLAIR_HINT_MAP: dict[str, list[str]] = {
+    "News": ["Announcements"],
+    "Discord": ["Announcements", "General Discussion"],
+    "Streaming Catalog": ["Licensing/Catalog"],
+    "Service Discussion": ["General Discussion"],
+    "Account/Membership": ["Account", "Billing"],
+    "Streaming | Technical Issue": ["UX/App", "Playback"],
+    "Dubs": ["Licensing/Catalog", "General Discussion", "Content"],
+}
+
+
+# Issue Category Prompt (used when flair is ambiguous or missing)
+ISSUE_CATEGORY_PROMPT = PromptTemplate(
+    input_variables=["post_text", "comments_text", "flair_hint"],
+    template=(
+        "Classify this Reddit post into ONE issue category.\n\n"
+        "{flair_hint}"
+        "MANDATORY FLAIR RULES:\n"
+        "- If flair hint says 'News' → MUST choose Announcements\n"
+        "- If flair hint suggests a category, follow it unless content is COMPLETELY unrelated\n\n"
+        "CATEGORIES:\n"
+        "Announcements → official news, pricing updates, dub release announcements, service updates, company announcements, ANY post with 'News' flair\n"
+        "Billing → USER complaints about their personal payments, charges, refunds (NOT news about pricing changes)\n"
+        "Account → login, password reset, email verification, profile settings, account linking (user-specific, NOT outages)\n"
+        "Playback → video won't play, buffering, error codes, loading, subtitle NOT displaying, audio sync\n"
+        "Content → subtitle TEXT errors, wrong translation, dub script quality, voice acting issues\n"
+        "UX/App → app crashes, UI bugs, updates, navigation, downloads, watchlist, skip button, outages, server errors\n"
+        "Licensing/Catalog → show removed, region-locked, missing episodes, geo-restrictions, 'when will X be added'\n"
+        "General Discussion → recommendations, opinions, feature requests, general questions (NEVER for News flair)\n"
+        "Unknown → cannot determine, ambiguous\n\n"
+        "KEY RULES:\n"
+        "- News flair = Announcements. ALWAYS.\n"
+        "- News/pricing announcements → Announcements (NOT Billing, NOT General Discussion)\n"
+        "- Account = user-specific issue. UX/App = affects anyone.\n"
+        "- Content = subtitle/translation issues. Playback = video/audio not working.\n"
+        "- Feature requests → General Discussion.\n\n"
+        "POST:\n{post_text}\n\n"
+        "COMMENTS:\n{comments_text}"
+    )
+)
+
+# Platform Detection Prompt
+PLATFORM_PROMPT = PromptTemplate(
     input_variables=["post_text", "comments_text"],
     template=(
-        "You are an expert at classifying Reddit posts about a streaming service.\n\n"
-        "Your task: Identify the PLATFORM (device) and ISSUE CATEGORY from the post.\n\n"
-        "═══════════════════════════════════════════════════════════════════\n"
-        "STEP 1: PLATFORM DETECTION (Think carefully!)\n"
-        "═══════════════════════════════════════════════════════════════════\n\n"
-        "You MUST identify the platform even if not explicitly stated. Use your knowledge:\n\n"
-        "GAME CONSOLE → PlayStation, PS3, PS4, PS5, Xbox, Xbox One, Xbox Series X/S, Nintendo Switch, Nintendo, "
-        "console (generic mention without brand)\n"
-        "iOS → iPhone (any model), iPad (any model), iOS, iPod Touch\n"
-        "tvOS → Apple TV, AppleTV\n"
-        "Android (Mobile) → Any Android phone including: Samsung Galaxy, Google Pixel, OnePlus, Xiaomi, Redmi, "
-        "Motorola/Moto (G5, G Power, Edge, etc.), Oppo, Vivo, Realme, Huawei, Honor, Nothing Phone, "
-        "Sony Xperia, LG phone, HTC, Nokia phone, Asus ROG Phone, ZTE, Poco, Android mobile\n"
-        "Android TV → Android TV, Google TV device, Sony Bravia (with Android), Nvidia Shield, Mi Box, "
-        "Hisense Android TV, Philips Android TV, TCL with Google TV\n"
-        "Fire TV → Fire TV, Fire TV Stick, Fire Stick, Firestick, Fire TV Cube, Amazon Fire TV, Fire TV 4K\n"
-        "Roku → Roku, Roku TV, Roku Stick, Roku Express, Roku Ultra, TCL Roku TV, Hisense Roku TV\n"
-        "Chromecast → Chromecast, Chromecast with Google TV, Google TV (dongle)\n"
-        "Smart TV / STB (Tetsuo) → LG TV (webOS), Samsung TV (Tizen), Vizio TV, TCL TV (non-Roku/non-Google), "
-        "Hisense TV (non-Android), Sony TV (non-Android), Panasonic TV, set-top box, cable box, STB\n"
-        "Browser (Safari) → Safari browser, Safari on Mac, Mac/MacBook if Safari is mentioned\n"
-        "Browser (Non-Safari) → Chrome, Firefox, Edge, Brave, Opera, Vivaldi, browser, website, web, "
-        "watching on computer, laptop, desktop, PC, MacBook (if using non-Safari browser or browser unspecified)\n"
-        "Windows App → Windows app, PC app, Windows 10, Windows 11, Microsoft Store app, desktop app on Windows\n"
-        "Multiple Devices → Use ONLY when the SAME issue affects 2+ different device types "
-        "(e.g., 'broken on both my phone and TV', 'not working on any of my devices', 'same issue on mobile and Roku')\n\n"
-        "REASONING RULES:\n"
-        "- If user mentions a phone model (e.g., 'Moto G5', 'Pixel 7', 'Galaxy S23') → likely Android (Mobile) or iOS\n"
-        "- If user mentions 'phone' or 'mobile' without specifics → infer from context or use Android (Mobile) as default\n"
-        "- If user mentions 'TV' without specifics → try to infer from other clues, otherwise Smart TV / STB (Tetsuo)\n"
-        "- If user mentions 'PC', 'computer', 'laptop', 'desktop' → Browser (Non-Safari) unless they specify Windows app\n"
-        "- If user mentions 'console' without brand → Game Console\n"
-        "- If user mentions 'Mac' or 'MacBook' without browser specified → Browser (Non-Safari)\n"
-        "- If user mentions 'app' → determine which platform based on context (phone app, TV app, etc.)\n"
-        "- If user mentions 'streaming on my...' → identify the device\n"
-        "- If user says 'works on X but not Y' → classify as Y (the device WITH the issue), NOT Multiple Devices\n"
-        "- If user says 'broken on both X and Y' or 'same issue on X and Y' → Multiple Devices\n"
-        "- If truly NO device/platform can be inferred → Unknown\n\n"
-        "SCOPE CHECK (for Account vs UX/App):\n"
-        "- Read the comments carefully. If multiple commenters report experiencing the SAME issue, it's likely UX/App.\n"
-        "- If the problem seems unique to the poster's account with no others confirming, it's Account.\n"
-        "- Posts asking 'anyone else having this issue?' where comments confirm → UX/App.\n\n"
-        "═══════════════════════════════════════════════════════════════════\n"
-        "STEP 2: ISSUE CATEGORY\n"
-        "═══════════════════════════════════════════════════════════════════\n\n"
-        "- Billing: payments, charges, refunds, subscriptions, pricing, renewal, free trial ended\n"
-        "- Account: Issues affecting the INDIVIDUAL USER'S ACCOUNT — login problems, password reset, "
-        "email verification, profile settings, account linking, bans, subscription status specific to their account. "
-        "Use this when the problem seems unique to the poster's account.\n"
-        "- Content: SOURCE MATERIAL QUALITY issues only — subtitle TEXT errors (typos, wrong translation, "
-        "missing words), dub script/voice acting quality complaints, video encoding artifacts baked into the source\n"
-        "- Playback: TECHNICAL DELIVERY issues — video won't play, buffering, loading, streaming errors, "
-        "error codes, resolution issues, subtitle NOT DISPLAYING, subtitle SYNC/timing issues, audio sync, "
-        "wrong audio track playing (e.g., Japanese audio instead of selected English dub), video freezing, "
-        "can't stream, connection issues, subtitles not working (technical failure)\n"
-        "- UX/App: Issues affecting MULTIPLE USERS or the app itself — app crashes, app not opening, "
-        "UI bugs, navigation issues, missing features, app update problems, download feature issues, "
-        "watchlist issues, search not working, widespread login outages, "
-        "skip button issues (wrong timing, not appearing, skip intro/outro complaints), "
-        "service outages ('Is it down?', 500 errors, site/app not loading), server errors. "
-        "If comments show others experiencing the same problem, classify as UX/App.\n"
-        "- Licensing/Catalog: show removed, region-locked, not available in library, missing episodes, "
-        "'when will X be added', simulcast schedule questions, content availability, geo-restrictions\n"
-        "- Announcements: official news, new feature launches (e.g., Crunchyroll Arc), service changes "
-        "(e.g., ad-supported tier discontinued), pricing tier updates, new partnerships, platform expansions, "
-        "major app updates, dub release date announcements, simulcast schedule announcements\n"
-        "- General Discussion: recommendations, opinions, polls, non-issue questions like 'do adults use Crunchyroll?', "
-        "comparisons to other services, general praise or complaints not tied to a specific issue\n"
-        "- Unknown: only if the issue truly does not fit any category above\n\n"
-        "DECISION RULE - Content vs Playback:\n"
-        "If the issue is about WHAT subtitles/audio SAY (quality, translation errors) → Content.\n"
-        "If subtitles/audio don't appear, are out of sync, or wrong track plays → Playback.\n\n"
-        "═══════════════════════════════════════════════════════════════════\n"
-        "NOW CLASSIFY THIS POST:\n"
-        "═══════════════════════════════════════════════════════════════════\n"
-        "{post_text}\n\n"
-        "**comments:**\n{comments_text}"
+        "Identify the PLATFORM/DEVICE where the issue is occurring.\n\n"
+        "CRITICAL RULES FOR DEVICE EXTRACTION:\n"
+        "1. PRIMARY: Look for device EXPLICITLY mentioned by OP in title/body\n"
+        "2. COMMENTS: Only use if commenters report the SAME issue on OTHER devices\n"
+        "   - If OP reports issue on Device A, and comments confirm same issue on Device B → Multiple Devices\n"
+        "   - Do NOT extract devices from comments discussing unrelated topics\n"
+        "3. NO DEVICE: If post is news/announcement/general discussion with no user issue → Unknown\n\n"
+        "Do NOT infer devices from:\n"
+        "- Comments just mentioning what device they use (without confirming the issue)\n"
+        "- News articles, announcements, or pricing updates\n"
+        "- General discussions without a specific technical issue\n\n"
+        "PLATFORMS:\n"
+        "Game Console → PlayStation, PS3/4/5, Xbox, Nintendo Switch, console\n"
+        "iOS → iPhone, iPad, iOS\n"
+        "tvOS → Apple TV\n"
+        "Android (Mobile) → Samsung Galaxy, Google Pixel, OnePlus, Xiaomi, Motorola, Android phone\n"
+        "Android TV → Android TV, Google TV, Nvidia Shield, Mi Box\n"
+        "Fire TV → Fire TV, Fire TV Stick, Firestick, Fire TV Cube\n"
+        "Roku → Roku, Roku TV, Roku Stick\n"
+        "Chromecast → Chromecast, Chromecast with Google TV\n"
+        "Smart TV / STB (Tetsuo) → LG TV, Samsung TV (Tizen), Vizio TV, Panasonic TV, set-top box\n"
+        "Browser (Safari) → Safari browser\n"
+        "Browser (Non-Safari) → Chrome, Firefox, Edge, browser, website, PC, laptop, desktop\n"
+        "Windows App → Windows app, PC app, Microsoft Store app\n"
+        "Multiple Devices → SAME issue confirmed on 2+ different device types\n"
+        "Unknown → no device mentioned, or post is news/announcement\n\n"
+        "RULES:\n"
+        "- Phone brand → Android (Mobile) or iOS accordingly\n"
+        "- Unspecified 'phone'/'mobile' → Android (Mobile)\n"
+        "- Unspecified 'TV' → Smart TV / STB (Tetsuo)\n"
+        "- 'PC'/'computer'/'laptop' → Browser (Non-Safari)\n"
+        "- 'works on X but not Y' → classify as Y (the broken device)\n\n"
+        "POST:\n{post_text}\n\n"
+        "COMMENTS:\n{comments_text}"
     )
 )
 
 
 def extract_categories(
-    classification_chain: Any,
+    issue_chain: Any,
+    platform_chain: Any,
     title: str | None,
     selftext: str | None,
-    comments_text: str | None = None
+    comments_text: str | None = None,
+    flair: str | None = None
 ) -> dict[str, str]:
-    """Extract device and issue type from post title, body, and comments using LLM.
+    """Extract device and issue type using LLM with flair as high-priority hint.
     
     Args:
-        classification_chain: The LLM chain for classification
+        issue_chain: LLM chain for issue category classification
+        platform_chain: LLM chain for platform detection
         title: Post title
         selftext: Post body text
         comments_text: Concatenated comment text from the post
+        flair: Reddit link flair text (high-priority hint)
     
     Returns:
         Dict with device and issue_type fields
     """
     combined_text = f"**title:** {title or ''}\n**body:** {selftext or ''}"
+    comments = comments_text or "No comments available."
     
     print(f"Classifying post: {title[:50] if title else 'No title'}...")
     
+    # === ISSUE CATEGORY: Always use LLM, flair as high-priority hint ===
+    issue_type = "Unknown"
     try:
-        result = classification_chain.invoke({
+        # Build flair hint based on mapping
+        if flair and flair in FLAIR_HINT_MAP:
+            options = FLAIR_HINT_MAP[flair]
+            if len(options) == 1:
+                flair_hint = f"FLAIR HINT (HIGH PRIORITY): Post has '{flair}' flair. This strongly suggests: {options[0]}. Only choose differently if content CLEARLY contradicts this.\n\n"
+            else:
+                flair_hint = f"FLAIR HINT (HIGH PRIORITY): Post has '{flair}' flair. Choose from these likely categories: {', '.join(options)}. Only choose outside these if content CLEARLY contradicts.\n\n"
+        elif flair:
+            flair_hint = f"FLAIR INFO: Post has '{flair}' flair (unmapped, use content to classify).\n\n"
+        else:
+            flair_hint = ""
+        
+        result = issue_chain.invoke({
             "post_text": combined_text,
-            "comments_text": comments_text or "No comments available."
+            "comments_text": comments,
+            "flair_hint": flair_hint
         })
-        return {
-            "device": result.platform.value if result.platform else "Unknown",
-            "issue_type": result.issue_category.value if result.issue_category else "Unknown",
-        }
+        issue_type = result.issue_category.value if result.issue_category else "Unknown"
+        
+        # Log with flair alignment info
+        if flair and flair in FLAIR_HINT_MAP:
+            expected = FLAIR_HINT_MAP[flair]
+            if issue_type in expected:
+                print(f"  [ISSUE] flair-aligned: '{flair}' → {issue_type}")
+            else:
+                print(f"  [ISSUE] flair-override: '{flair}' (expected {expected}) → {issue_type}")
+        elif flair:
+            print(f"  [ISSUE] unmapped-flair: '{flair}' → {issue_type}")
+        else:
+            print(f"  [ISSUE] no-flair → {issue_type}")
+    
     except Exception as e:
-        print(f"Classification error: {e}")
-        return {
-            "device": "Unknown",
-            "issue_type": "Unknown",
-        }
+        print(f"  [ISSUE] error: {e}")
+        issue_type = "Unknown"
+    
+    # === PLATFORM: Always use LLM ===
+    device = "Unknown"
+    try:
+        result = platform_chain.invoke({
+            "post_text": combined_text,
+            "comments_text": comments
+        })
+        device = result.platform.value if result.platform else "Unknown"
+        print(f"  [PLATFORM] llm → {device}")
+    except Exception as e:
+        print(f"  [PLATFORM] error: {e}")
+        device = "Unknown"
+    
+    return {
+        "device": device,
+        "issue_type": issue_type,
+    }
 
 
 def flatten_comment_bodies(
@@ -586,15 +636,17 @@ def main() -> None:
         num_predict=256
     )
     
-    # Initialize LLM chain for classification (with structured output)
+    # Initialize LLM for classification (shared model, separate chains)
     classification_llm = ChatOllama(
         model="deepseek-r1:8b",
         temperature=0.0,
-        reasoning=False,
-        num_predict=512
-    ).with_structured_output(RedditPostClassification)
+        reasoning=True,
+        num_predict=1024
+    )
     
-    classification_chain = CLASSIFICATION_PROMPT | classification_llm
+    # Two separate chains for issue category and platform
+    issue_chain = ISSUE_CATEGORY_PROMPT | classification_llm.with_structured_output(IssueCategoryResult)
+    platform_chain = PLATFORM_PROMPT | classification_llm.with_structured_output(PlatformResult)
 
     prompt = PromptTemplate.from_template(
     """
@@ -713,12 +765,14 @@ def main() -> None:
             post["sentiment_score_transformer"] = 0.0
         post["sentiment_bucket_transformer"] = get_sentiment_bucket(post["sentiment_score_transformer"])
         
-        # Extract device and issue type categories using LLM
+        # Extract device and issue type categories using two-tier classification
         categories = extract_categories(
-            classification_chain,
+            issue_chain,
+            platform_chain,
             post.get("title", ""),
             post.get("selftext", ""),
-            comments_text
+            comments_text,
+            post.get("link_flair_text", "")
         )
         post["device"] = categories["device"]
         post["issue_type"] = categories["issue_type"]
