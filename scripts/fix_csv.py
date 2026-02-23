@@ -16,7 +16,7 @@ from typing import Optional
 # CONFIGURATION
 # =============================================================================
 
-CSV_FILE = 'reddit_crunchyroll_5days.csv'
+CSV_FILE = 'reddit_crunchyroll_30days.csv'
 
 # Flair → Expected issue_type(s) mapping
 FLAIR_TO_ISSUE_TYPE = {
@@ -89,6 +89,7 @@ VALIDATORS = [
 # =============================================================================
 
 def load_csv(filepath: str) -> tuple:
+    csv.field_size_limit(10 * 1024 * 1024)  # 10 MB limit
     with open(filepath, 'r', encoding='utf-8') as f:
         reader = csv.DictReader(f)
         return reader.fieldnames, list(reader)
