@@ -25,12 +25,12 @@ An end-to-end data engineering project that ingests hourly NOAA weather observat
 
 ## Project layout
 
-- `databricks_project_bundle/src/weather_hourly_ingestor.py` ETL logic
-- `databricks_project_bundle/src/constants/weather_constants.py` configuration
-- `databricks_project_bundle/resources/weather_job.yml` job scheduling
-- `databricks_project_bundle/resources/weather_dashboard.yml` dashboard resource
-- `databricks_project_bundle/resources/weather_dashboard.lvdash.json` dashboard definition
-- `databricks_project_bundle/tests/test_weather_hourly_ingestor.py` tests
+- `src/weather_hourly_ingestor.py` ETL logic
+- `src/constants/weather_constants.py` configuration
+- `resources/weather_job.yml` job scheduling
+- `resources/weather_dashboard.yml` dashboard resource
+- `resources/weather_dashboard.lvdash.json` dashboard definition
+- `tests/test_weather_hourly_ingestor.py` tests
 
 ## Run locally
 
@@ -49,9 +49,9 @@ databricks bundle deploy --target prod
 
 ## Configuration
 
-- Add stations in `databricks_project_bundle/src/constants/weather_constants.py` via `WEATHER_STATION_IDS`.
+- Add stations in `src/constants/weather_constants.py` via `WEATHER_STATION_IDS`.
 - Update the target table with `WEATHER_TABLE_NAME`.
-- Adjust schedule in `databricks_project_bundle/resources/weather_job.yml`.
+- Adjust schedule in `resources/weather_job.yml`.
 
 ## Results
 
