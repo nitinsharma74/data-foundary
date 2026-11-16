@@ -21,6 +21,26 @@ The input CSV is produced offline by the helper scripts in [`scripts/`](scripts/
 
 Copy the finished CSV into `reddit_sentiment_analysis/fixtures/`, where the pipeline finds any file matching `reddit_crunchyroll_<N>days.csv`. Its columns must match `SCHEMA` in `src/get_reddit_data.py`.
 
+## Repository overview
+
+```mermaid
+flowchart LR
+    subgraph scripts["scripts/ (offline, not deployed)"]
+        fetch["fetch_reddit_data.py"] --> fix["fix_csv.py"]
+    end
+    fix -->|"copy CSV"| fixtures["reddit_sentiment_analysis/fixtures/<br/>reddit_crunchyroll_Ndays.csv"]
+
+    subgraph weather["hourly_weather_report bundle"]
+        noaa["api.weather.gov"] --> wjob["weather_hourly_ingestor.py"] --> wtable[("target_hourly_weather_report")] --> wdash["Hourly Weather Report dashboard"]
+    end
+
+    subgraph reddit["reddit_sentiment_analysis bundle"]
+        fixtures --> rjob["get_reddit_data.py"] --> rtables[("target_reddit_data<br/>target_reddit_data_comments")] --> rdash["Reddit Sentiment Analysis dashboard"]
+    end
+```
+
+`target` is the bundle target (`dev` or `prod`), and every table lives in `workspace.default`.
+
 ## How each pipeline runs
 
 ```
@@ -31,7 +51,9 @@ Each bundle's `resources/` folder defines:
 - a two-task job: the ETL script, then a refresh of the dashboard,
 - the dashboard resource and its `.lvdash.json` definition.
 
-Tables are prefixed with the deployment target (`dev_` or `prod_`). This keeps dev and prod data separate inside `workspace.default`.
+Tables are prefixed with the deployment target (`dev_` or `prod_`). This keeps dev and prod data separate inside `workspace.default`. The `dev` target is the default: it deploys in development mode, which prefixes resource names and keeps the job schedule paused. The `prod` target unpauses the schedule.
+
+Known issue: both dashboard definitions query the `prod_` tables, whichever target they are deployed to. A dev deployment writes to `dev_` tables, but its dashboard still shows prod data.
 
 ## Tech stack
 
@@ -49,11 +71,12 @@ cd hourly_weather_report
 uv sync --dev
 uv run pytest
 
-# Reddit (the tests start a local SparkSession and need Java)
+# Reddit (the tests start a local Spark + Delta session and need Java)
 cd reddit_sentiment_analysis
-uv sync --dev
-PYTHONPATH=src uv run pytest
+UV_PROJECT_ENVIRONMENT=.venv-test uv run --no-default-groups --group test pytest
 ```
+
+The Reddit tests use the `test` dependency group (OSS `pyspark` 3.5 and `delta-spark` 3.3). That group conflicts with the `dev` group (`databricks-connect`), because both install into the same `pyspark/` package directory. Keep the test group in its own virtualenv (`.venv-test/`, which is gitignored) so it does not break `.venv`. See [`reddit_sentiment_analysis/README.md`](reddit_sentiment_analysis/README.md#run-tests) for details.
 
 Deploy a bundle:
 
@@ -65,8 +88,29 @@ databricks bundle deploy --target prod   # schedule unpaused
 
 ## CI/CD
 
-- **Tests** (`.github/workflows/tests.yml`): run pytest for `hourly_weather_report` (Python 3.11, `requirements.txt`) on every push and pull request. The Reddit tests are not run in CI; run them locally.
-- **Deploy** (`.github/workflows/deploy.yml`): pull requests to `main` validate both bundles. A push to `main` deploys both bundles to the target set in the `BUNDLE_TARGET` secret. The workflow needs the `DATABRICKS_HOST` and `DATABRICKS_TOKEN` secrets.
+```mermaid
+flowchart LR
+    push["push (any branch)"] --> tests
+    pr["pull request"] --> tests
+    subgraph tests["tests.yml"]
+        wt["pytest job<br/>hourly_weather_report"]
+        rt["reddit-pytest job<br/>reddit_sentiment_analysis"]
+    end
+
+    prmain["pull request to main"] --> validate
+    pushmain["push to main"] --> deploy
+    subgraph deployyml["deploy.yml"]
+        validate["validate job<br/>bundle validate, both bundles"]
+        deploy["deploy job<br/>validate + deploy both bundles<br/>to secrets.BUNDLE_TARGET"]
+    end
+```
+
+- **Tests** (`.github/workflows/tests.yml`) run on every push and pull request, with two jobs:
+  - `pytest`: `hourly_weather_report` on Python 3.11, installing `requirements.txt` with pip.
+  - `reddit-pytest`: `reddit_sentiment_analysis` with Java 17 (Temurin), uv and Python 3.11, running `uv run --locked --no-default-groups --group test pytest`.
+- **Deploy** (`.github/workflows/deploy.yml`): pull requests to `main` validate both bundles. A push to `main` validates and deploys both bundles to the target set in the `BUNDLE_TARGET` secret. The workflow needs the `DATABRICKS_HOST` and `DATABRICKS_TOKEN` secrets.
+
+The two workflows are independent: the deploy does not wait for the tests to pass.
 
 ## Repository structure
 
@@ -75,5 +119,7 @@ data-foundary/
 ├── hourly_weather_report/      # NOAA weather ETL bundle
 ├── reddit_sentiment_analysis/  # Reddit sentiment ETL bundle (input CSV in fixtures/)
 ├── scripts/                    # Offline tools that build the Reddit fixture CSV
-└── .github/workflows/          # Test and deploy pipelines
+├── .github/workflows/          # Test and deploy pipelines
+├── .claude/agents/             # Claude Code subagents (reviewers, test writer, scaffolder, docs)
+└── CLAUDE.md                   # Guidance for Claude Code
 ```
