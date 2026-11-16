@@ -21,6 +21,15 @@ sys.modules.setdefault(
 from src import weather_hourly_ingestor
 
 
+def _patch_spark(monkeypatch, spark):
+    # Patch the module-level name, not an attribute of the shared MagicMock.
+    # pytest>=9.2 undoes setattr on a mock child via delattr, which permanently
+    # removes it from the mock and breaks every later test.
+    fake_session = MagicMock()
+    fake_session.builder.getOrCreate.return_value = spark
+    monkeypatch.setattr(weather_hourly_ingestor, "SparkSession", fake_session)
+
+
 def test_fetch_hourly_weather_parses_rows(monkeypatch):
     response = MagicMock()
     response.json.return_value = {
@@ -41,11 +50,7 @@ def test_fetch_hourly_weather_parses_rows(monkeypatch):
     monkeypatch.setattr(
         weather_hourly_ingestor.requests, "get", lambda *args, **kwargs: response
     )
-    monkeypatch.setattr(
-        weather_hourly_ingestor.SparkSession.builder,
-        "getOrCreate",
-        lambda: MagicMock(),
-    )
+    _patch_spark(monkeypatch, MagicMock())
 
     app = weather_hourly_ingestor.WeatherHourlyIngestor(
         station_ids=["KJFK", "KSFO", "KDFW"]
@@ -62,9 +67,7 @@ def test_write_table_inserts_when_missing(monkeypatch):
     spark.catalog.tableExists.return_value = False
     spark_df = MagicMock()
     spark.createDataFrame.return_value = spark_df
-    monkeypatch.setattr(
-        weather_hourly_ingestor.SparkSession.builder, "getOrCreate", lambda: spark
-    )
+    _patch_spark(monkeypatch, spark)
 
     app = weather_hourly_ingestor.WeatherHourlyIngestor()
     app.write_table(pd.DataFrame([{"station_id": "KJFK"}]))

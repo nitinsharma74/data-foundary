@@ -25,3 +25,27 @@ jobs:
 
       - name: Run tests
         run: python -m pytest
+
+  reddit-pytest:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: reddit_sentiment_analysis
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.11"
+          enable-cache: true
+          cache-dependency-glob: reddit_sentiment_analysis/uv.lock
+
+      - name: Run tests (local Spark + Delta)
+        run: uv run --locked --no-default-groups --group test pytest

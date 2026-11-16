@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 FIXTURE_FILENAME_PATTERN = re.compile(r"reddit_crunchyroll_\d+days\.csv")
 DATABRICKS_WORKSPACE_PREFIX = "/Workspace/"
-TABLE_NAME_PATTERN = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_.]*$")
+TABLE_NAME_PATTERN = re.compile(r"[a-zA-Z_][a-zA-Z0-9_.]*")
 
 SCHEMA = StructType(
     [
@@ -120,7 +120,10 @@ def _load_fixture_dataframe(spark: SparkSession) -> DataFrame:
             pandas_df["created_utc"], errors="coerce", utc=True
         ).dt.tz_convert(None)
         return spark.createDataFrame(pandas_df, schema=SCHEMA)
-    return spark.read.csv(str(fixture_path), header=True, schema=SCHEMA)
+    # Fields contain embedded newlines and RFC 4180 doubled quotes ("").
+    return spark.read.csv(
+        str(fixture_path), header=True, schema=SCHEMA, multiLine=True, escape='"'
+    )
 
 
 def _unescape_html(col: F.Column) -> F.Column:
@@ -278,7 +281,8 @@ def _validate_table_name(table_name: str) -> None:
     Raises:
         ValueError: If table name contains invalid characters.
     """
-    if not TABLE_NAME_PATTERN.match(table_name):
+    # fullmatch, not match + "$": "$" also matches before a trailing newline.
+    if not TABLE_NAME_PATTERN.fullmatch(table_name):
         raise ValueError(
             f"Invalid table name '{table_name}'. Must match pattern: "
             "start with letter/underscore, contain only alphanumeric/underscore/dot."

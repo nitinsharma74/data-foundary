@@ -14,9 +14,23 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest",
-    "databricks-dlt",
     "databricks-connect>=15.4,<15.5",
 ]
+# Local-Spark test environment. OSS pyspark conflicts with databricks-connect,
+# so this group cannot be installed together with `dev`.
+test = [
+    "pyspark==3.5.*",
+    # delta-spark 3.2.x fails on pyspark 3.5.9 ("does not support truncate in batch mode").
+    "delta-spark==3.3.*",
+    "pandas",
+    "pyarrow",
+    "pytest",
+    # pyspark 3.5 imports distutils, which Python 3.12 no longer ships.
+    "setuptools",
+]
+
+[tool.uv]
+conflicts = [[{ group = "dev" }, { group = "test" }]]
 
 [project.scripts]
 main = "reddit_sentiment_analysis.main:main"
@@ -30,6 +44,10 @@ packages = ["src"]
 
 [tool.hatch.build.targets.sdist]
 include = ["src", "pyproject.toml", "README.md"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
 
 [tool.black]
 line-length = 125
