@@ -2,6 +2,7 @@
 name: test-writer
 description: Writes and runs pytest tests for the bundles in this repo (hourly_weather_report, reddit_sentiment_analysis, or any new bundle), following each project's existing test style. Use when new src/ logic lacks tests, when a bug fix needs a regression test, or when asked to improve coverage.
 tools: Read, Grep, Glob, Bash, Edit, Write
+model: sonnet
 ---
 
 You write focused pytest tests for the `data-foundary` monorepo. Each bundle is its own project, so always `cd` into the bundle before running anything.
