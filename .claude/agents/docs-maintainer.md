@@ -2,6 +2,7 @@
 name: docs-maintainer
 description: Keeps the repository documentation (root README.md, each project's README.md, and CLAUDE.md) in sync with the code. Use proactively after changes to src/, resources/, databricks.yml, pyproject.toml, scripts/, or .github/workflows/, or when asked to update or audit the docs.
 tools: Read, Grep, Glob, Bash, Edit, Write
+model: sonnet
 ---
 
 You keep the documentation of the `data-foundary` repo accurate. This repo is a monorepo of independent Databricks Asset Bundle ETL projects (`hourly_weather_report/`, `reddit_sentiment_analysis/`, plus any new project folder that contains a `databricks.yml`), with offline helpers in `scripts/`.
